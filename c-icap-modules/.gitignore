@@ -1,0 +1,89 @@
+aclocal.m4
+autom4te.cache
+c-icap
+c-icap.conf
+c-icap.local.conf
+c-icap-config
+c-icap-libicapapi-config
+c-icap-client
+c-icap-stretch
+autoconf.h
+compile
+config.*
+configure
+depcomp
+.deps
+icap_send_file
+install-sh
+libtool
+ltmain.sh
+Makefile
+Makefile.in
+Makefile.Linux-Static
+missing
+mkinstalldirs
+stamp-h1
+TAGS
+TEST
+tests
+var
+.dirstamp
+
+# Prerequisites
+*.d
+
+# Object files
+*.o
+*.ko
+*.obj
+*.elf
+*.lai
+
+# Linker output
+*.ilk
+*.map
+*.exp
+
+# Precompiled Headers
+*.gch
+*.pch
+
+# Libraries
+.libs/*
+modules/.libs/*
+*.lib
+*.a
+*.la
+*.lo
+
+# Shared objects (inc. Windows DLLs)
+*.dll
+*.so
+*.so.*
+*.dylib
+
+# Executables
+*.exe
+*.out
+*.app
+*.i*86
+*.x86_64
+*.hex
+
+# Debug files
+*.dSYM/
+*.su
+*.idb
+*.pdb
+
+# Kernel Module Compile Results
+*.mod*
+*.cmd
+.tmp_versions/
+modules.order
+Module.symvers
+Mkfile.old
+dkms.conf
+
+# Docs
+docs/*
