@@ -43,7 +43,6 @@ static int CLAMAV_HEURISTIC_PRECEDENCE = 0;
 static int CLAMAV_BLOCKMACROS = 0;
 static int CLAMAV_PHISHING_BLOCKSSL = 0;
 static int CLAMAV_PHISHING_BLOCKCLOAK = 0;
-static int VIRUSONFAILURE = 0;
 
 int cfg_virus_scan_TmpDir(const char *directive, const char **argv, void *setdata);
 int cfg_set_pua_list(const char *directive, const char **argv, void *setdata);
@@ -71,7 +70,6 @@ static struct ci_conf_entry clamav_conf_variables[] = {
      {"OLE2BlockMacros", &CLAMAV_BLOCKMACROS, ci_cfg_onoff, NULL},
      {"PhishingAlwaysBlockSSLMismatch", &CLAMAV_PHISHING_BLOCKSSL, ci_cfg_onoff, NULL},
      {"PhishingAlwaysBlockCloak", &CLAMAV_PHISHING_BLOCKCLOAK, ci_cfg_onoff, NULL},
-     {"ReportVirusOnFailure", &VIRUSONFAILURE, ci_cfg_onoff, NULL},
      {NULL, NULL, NULL, NULL}
 };
 
@@ -106,8 +104,8 @@ extern ci_off_t CLAMAV_MAXFILESIZE;
 extern ci_off_t CLAMAV_MAXSCANSIZE;
 extern char *CLAMAV_TMP;
 
-#define CLAMAV_VERSION_SIZE 64
-static char CLAMAV_VERSION[CLAMAV_VERSION_SIZE];
+#define CLAMAVLIB_VERSION_SIZE 64
+static char CLAMAVLIB_VERSION[CLAMAVLIB_VERSION_SIZE];
 #define CLAMAV_SIGNATURE_SIZE SERVICE_ISTAG_SIZE + 1
 static char CLAMAV_SIGNATURE[CLAMAV_SIGNATURE_SIZE];
 
@@ -125,7 +123,12 @@ struct virus_db {
 #ifndef HAVE_LIBCLAMAV_095
 struct cl_limits limits;
 #endif
+
+#ifdef HAVE_CL_SCAN_OPTIONS
+struct cl_scan_options CLAMSCAN_OPTIONS;
+#else
 unsigned int CLAMSCAN_OPTIONS = CL_SCAN_STDOPT;
+#endif
 
 struct virus_db *virusdb = NULL;
 struct virus_db *old_virusdb = NULL;
@@ -188,6 +191,55 @@ int clamav_post_init(struct ci_server_conf *server_conf)
 #endif
 
      /*Build scan options*/
+#ifdef HAVE_CL_SCAN_OPTIONS
+     memset(&CLAMSCAN_OPTIONS, 1, sizeof(CLAMSCAN_OPTIONS));
+     CLAMSCAN_OPTIONS.parse = ~0;
+
+#if defined(CL_SCAN_HEURISTIC_ENCRYPTED_ARCHIVE)
+     if (CLAMAV_BLOCKENCRYPTED) {
+         CLAMSCAN_OPTIONS.general |= CL_SCAN_GENERAL_HEURISTICS;
+         CLAMSCAN_OPTIONS.heuristic |= CL_SCAN_HEURISTIC_ENCRYPTED_ARCHIVE;
+         CLAMSCAN_OPTIONS.heuristic |= CL_SCAN_HEURISTIC_ENCRYPTED_DOC;
+     }
+#endif
+
+#if defined(CL_SCAN_HEURISTIC_BROKEN)
+     if (CLAMAV_BLOCKBROKEN) {
+         CLAMSCAN_OPTIONS.general |= CL_SCAN_GENERAL_HEURISTICS;
+         CLAMSCAN_OPTIONS.heuristic |= CL_SCAN_HEURISTIC_BROKEN;
+     }
+#endif
+
+#if defined(CL_SCAN_GENERAL_HEURISTIC_PRECEDENCE)
+     if (CLAMAV_HEURISTIC_PRECEDENCE) {
+         CLAMSCAN_OPTIONS.general |= CL_SCAN_GENERAL_HEURISTICS;
+         CLAMSCAN_OPTIONS.heuristic |= CL_SCAN_GENERAL_HEURISTIC_PRECEDENCE;
+     }
+#endif
+
+#if defined(CL_SCAN_HEURISTIC_MACROS)
+     if (CLAMAV_BLOCKMACROS) {
+         CLAMSCAN_OPTIONS.general |= CL_SCAN_GENERAL_HEURISTICS;
+         CLAMSCAN_OPTIONS.heuristic |= CL_SCAN_HEURISTIC_MACROS;
+     }
+#endif
+
+#if defined(CL_SCAN_HEURISTIC_PHISHING_SSL_MISMATCH)
+     if (CLAMAV_PHISHING_BLOCKSSL) {
+         CLAMSCAN_OPTIONS.general |= CL_SCAN_GENERAL_HEURISTICS;
+         CLAMSCAN_OPTIONS.heuristic |= CL_SCAN_HEURISTIC_PHISHING_SSL_MISMATCH;
+     }
+#endif
+
+#if defined(CL_SCAN_HEURISTIC_PHISHING_CLOAK)
+     if (CLAMAV_PHISHING_BLOCKCLOAK) {
+         CLAMSCAN_OPTIONS.general |= CL_SCAN_GENERAL_HEURISTICS;
+         CLAMSCAN_OPTIONS.heuristic |= CL_SCAN_HEURISTIC_PHISHING_CLOAK;
+     }
+#endif
+
+#else /*!HAVE_CL_SCAN_OPTIONS*/
+
 #if defined(CL_SCAN_BLOCKENCRYPTED)
      if (CLAMAV_BLOCKENCRYPTED)
          CLAMSCAN_OPTIONS |= CL_SCAN_BLOCKENCRYPTED;
@@ -212,6 +264,8 @@ int clamav_post_init(struct ci_server_conf *server_conf)
      if (CLAMAV_PHISHING_BLOCKCLOAK)
          CLAMSCAN_OPTIONS |= CL_SCAN_PHISHING_BLOCKCLOAK;
 #endif
+
+#endif /*HAVE_CL_SCAN_OPTIONS*/
 
      clamav_set_versions();
      av_register_engine(&clamav_engine);
@@ -485,7 +539,11 @@ int clamav_scan_simple_file(ci_simple_file_t *body, av_virus_info_t *vinfo)
     vinfo->virus_found = 0;
      vdb = get_virusdb();
      lseek(fd, 0, SEEK_SET);
-#ifndef HAVE_LIBCLAMAV_095
+#if defined(HAVE_CL_SCAN_OPTIONS)
+     ret =
+         cl_scandesc(fd, NULL, &virname, &scanned_data, vdb,
+                     &CLAMSCAN_OPTIONS);
+#elif !defined(HAVE_LIBCLAMAV_095)
      ret =
          cl_scandesc(fd, &virname, &scanned_data, vdb, &limits,
                      CLAMSCAN_OPTIONS);
@@ -509,16 +567,9 @@ int clamav_scan_simple_file(ci_simple_file_t *body, av_virus_info_t *vinfo)
          ci_vector_add(vinfo->viruses, &a_virus, sizeof(av_virus_t));
      }
      else if (ret != CL_CLEAN) {
-         const char *err = cl_strerror(ret);
          ci_debug_printf(1,
-                         "clamav_mod: An error occured while scanning the data: %s\n", err);
-         if (VIRUSONFAILURE) {
-             /* Report a virus instead of return error*/
-             strncpy(vinfo->virus_name, err, AV_NAME_SIZE);
-             vinfo->virus_name[AV_NAME_SIZE - 1] = '\0';
-             vinfo->virus_found = 1;
-         } else
-             status = 0;
+                         "clamav_mod: An error occured while scanning the data\n");
+         status = 0;
      }
      release_virusdb(vdb);
      return status;
@@ -580,7 +631,7 @@ void clamav_set_versions()
 {
     char str_version[64];
     int cfg_version = 0;
-    unsigned int version, level;
+    unsigned int version = 0, level = 0;
 
     clamav_get_versions(&level, &version, str_version, sizeof(str_version));
 
@@ -590,13 +641,13 @@ void clamav_set_versions()
     CLAMAV_SIGNATURE[CLAMAV_SIGNATURE_SIZE - 1] = '\0';
 
      /*set the clamav version*/
-     snprintf(CLAMAV_VERSION, CLAMAV_VERSION_SIZE - 1, "%s/%d", str_version, version);
-     CLAMAV_VERSION[CLAMAV_VERSION_SIZE - 1] = '\0';
+     snprintf(CLAMAVLIB_VERSION, CLAMAVLIB_VERSION_SIZE - 1, "%s/%d", str_version, version);
+     CLAMAVLIB_VERSION[CLAMAVLIB_VERSION_SIZE - 1] = '\0';
 }
 
 const char *clamav_version()
 {
-    return CLAMAV_VERSION;
+    return CLAMAVLIB_VERSION;
 }
 
 const char *clamav_signature()
