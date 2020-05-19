@@ -1,7 +1,13 @@
 aclocal.m4
 autom4te.cache
+c-icap
 c-icap.conf
 c-icap.local.conf
+c-icap-config
+c-icap-libicapapi-config
+c-icap-client
+c-icap-stretch
+autoconf.h
 compile
 config.*
 configure
@@ -21,6 +27,7 @@ TAGS
 TEST
 tests
 var
+.dirstamp
 
 # Prerequisites
 *.d
@@ -30,6 +37,7 @@ var
 *.ko
 *.obj
 *.elf
+*.lai
 
 # Linker output
 *.ilk
@@ -41,6 +49,8 @@ var
 *.pch
 
 # Libraries
+.libs/*
+modules/.libs/*
 *.lib
 *.a
 *.la
@@ -74,3 +84,6 @@ modules.order
 Module.symvers
 Mkfile.old
 dkms.conf
+
+# Docs
+docs/*
