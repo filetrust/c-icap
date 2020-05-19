@@ -1,0 +1,114 @@
+.TH c-icap-client 8 "@PACKAGE_STRING@"
+.SH NAME
+c-icap-client - simple ICAP client
+.SH SYNOPSIS
+.B c-icap-client
+[
+.B \-V
+]
+[
+.B \-VV
+]
+[
+.B \-i "icap_servername"
+]
+[
+.B \-p "port"
+]
+[
+.B \-s "service"
+]
+[
+.B \-f "input_file"
+]
+[
+.B \-o "out_file"
+]
+[
+.B \-req "url"
+]
+[
+.B \-resp "url"
+]
+[
+.B \-d "debug level"
+]
+[
+.B \-noreshdr
+]
+[
+.B \-nopreview
+]
+[
+.B \-no204
+]
+[
+.B \-206
+]
+[
+.B \-x "icap-header"
+]
+[
+.B \-hx "http-request-header"
+]
+[
+.B \-rhx "http-response-header"
+]
+[
+.B \-w preview_size
+]
+[
+.B \-v
+]
+.SH DESCRIPTION
+.B c-icap-client
+is a simple ICAP client. It can be used to test your icap server configuration.
+.SH OPTIONS
+.IP "-V"
+Print version
+.IP "-VV"
+Print build informations
+.IP "-i icap_servername"
+The hostname of the icap server. The default is localhost
+.IP "-p port"
+The server port. The default port value is 1344
+.IP "-s service"
+The service name. The default service name is "echo"
+.IP "-f filename"
+Send this file to the icap server. Default is to send an options request
+.IP "-o filename"
+Save output to this file. Default is to send to stdout
+.IP "-req url"
+Send a request modification instead of response modification, using as http url the url provided with this option.
+.IP "-resp url"
+Send a response modification with http request headers, using as http url the url provided with this option.
+.IP "-d level"
+debug level info to stdout
+.IP "-noreshdr"
+Do not send reshdr headers
+.IP "-nopreview"
+Do not send preview request data
+.IP "-no204"
+Do not allow204 outside preview
+.IP "-206"
+Support 206 responses
+.IP "-x icap-header"
+Include the icap-header in icap request headers
+.IP "-hx http-request-header"
+Include the http-request-header in http request headers
+.IP "-rhx http-response-header"
+Include the http-response-header in http response headers
+.IP "-w preview"
+Sets the maximum preview data size to preview
+.IP "-v"
+Print response headers
+.SH SEE ALSO
+.BR c-icap "(8)"
+.BR c-icap-stretch "(8)"
+.BR c-icap-config "(8)"
+.BR c-icap-libicapapi-config "(8)"
+.BR c-icap-mkbdb "(8)"
+.SH BUGS
+Many...
+.SH AUTHOR
+Tsantilas Christos

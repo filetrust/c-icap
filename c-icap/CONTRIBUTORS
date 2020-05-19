@@ -1,0 +1,6 @@
+Christos Tsantilas
+Alexandros Tsantilas : has wrote some of the parsers used by c-icap
+Tofig Suleymanov: Implemented the ListenAddress configuration option
+Alfred Klomp, Bokxing IT: bug fixes
+Trever L. Adams: txtTemplates, bzip,gzip/deflate encoding routings
+Jeffrey Merkey: brotli compression/decompression support

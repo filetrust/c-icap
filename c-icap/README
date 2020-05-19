@@ -1,0 +1,23 @@
+The c-icap server                         http://c-icap.sourceforge.net/
+
+c-icap is an implementation of an ICAP server. It can be used with HTTP
+proxies that support the ICAP protocol to implement content adaptation
+and filtering services.
+
+Most of the commercial HTTP proxies must support the ICAP protocol. The
+open source Squid proxy server supports it.
+
+Major features:
+  - ICAP over TLS support
+  - C API for developing custom content adaptation and filtering services
+  - plugins interface
+  - LDAP integration
+  - simple ICAP client API
+
+For support, use the following resources:
+ - General discussion related to c-icap server:
+   c-icap-users@lists.sourceforge.net
+ - Basic installation and configuration instructions:
+   https://sourceforge.net/p/c-icap/wiki/configcicap/
+ - c-icap service developers should start from here:
+   https://sourceforge.net/p/c-icap/wiki/Developers/

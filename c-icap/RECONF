@@ -1,0 +1,8 @@
+echo trunk-`svnversion | cut -d ':' -f 2` > VERSION.m4
+autoreconf -f -i -v
+#aclocal
+#autoconf
+##autoheader
+##cp /usr/share/libtool/ltmain.sh .
+#libtoolize  --copy --automake  -f
+#automake --add-missing --copy

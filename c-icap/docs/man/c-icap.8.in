@@ -1,0 +1,179 @@
+.TH c-icap 8 "@PACKAGE_STRING@"
+.SH NAME
+c-icap - ICAP filtering server
+.SH SYNOPSIS
+.B c-icap
+[
+.B \-V
+]
+[
+.B \-VV
+]
+[
+.B \-f " config-file"
+]
+[
+.B \-N
+]
+[
+.B \-d " debug-level"
+]
+[
+.B \-D
+]
+.SH DESCRIPTION
+.B c-icap
+is an implementation of an ICAP server. It can be used with HTTP proxies that support the ICAP protocol. Most of the comercial HTTP proxies must support ICAP pcotocol.
+.SH OPTIONS
+.IP "-V"
+Print version
+.IP "-VV"
+Print build informations
+.IP "-f config-file"
+Specify the configuration file
+.IP "-N"
+Do not run as daemon
+.IP "-d level"
+Specify the debug level
+.IP "-D"
+Print debug info to stdout
+.SH FILES
+.I @SYSCONFDIR@/c-icap.conf
+.RS
+The main configuration file
+.RE
+.I @SYSCONFDIR@/c-icap.magic
+.RS
+ In this file defined the types of files and the groups of file types.
+.RE
+.I /var/run/c-icap.pid
+.RS
+By default c-icap writes its pid in this file. The path of this file can changed using the PidFile configuration parameter in the c-icap.conf file
+.RE
+.I /var/run/c-icap.ctl
+.RS
+The commands socket. This file used to send commands to the icap server from command line. For information about implemented commands look below in the "Implemented commands" sub-section
+.SH NOTES
+.SS Implemented commands
+Currently the following commands are implemented:
+.IP "stop"
+.RS
+The c-icap will shutdown
+.RE
+.IP "reconfigure"
+.RS
+The service will reread the config file without the need to stop and restart
+the c-icap server. The services will be reinitialized
+.RE
+.IP "relog"
+.RS
+This command causes c-icap to close and reopen the log files.
+This is very useful for log rotation.
+.RE
+.PP
+Services and modules can define their own commands.
+.PP
+\fBExamples:\fR
+.IP "To reconfigure c-icap:"
+      echo \-n "reconfigure" > /var/run/c-icap.ctl
+.IP "To rotate access log:"
+      mv /var/log/c-icap/access.log /var/log/c-icap/access.log.1
+      echo \-n "relog" > /var/run/c-icap.ctl
+.RE
+.SS Lookup tables
+Lookup tables are simple read-only databases.
+A lookup table can defined in c-icap.conf file using the form:
+.RE
+	type:path
+.RE
+where the \fBtype\fR is the type of lookup table and \fBpath\fR is the extra information required to use the table (e.g. file path). Currently the following lookup table types defined internally by c-icap:
+.IP file
+Simple text file databases. The database records are stored in text files in the form:
+.RS
+ key[: value1, value2 ...]
+.RE
+.RS
+.IP "example path definition:"
+.RS
+file:/path/to/the/file.txt
+.RE
+.RE
+.IP hash
+Similar to file lookup tables but c-icap uses fast hashes for searching.
+.RS
+.IP "example path definition:"
+.RS
+hash:/path/to/the/file.txt
+.RE
+.RE
+.IP regex
+Similar to the file lookup tables but the keys are regular expressions in the form /regex/flags . For possible flags values please read 'Regex expressions' paragraph in this manual.
+.RS
+.IP "example regex lookup table data:"
+	/^[a-m].*/i: group1
+.br
+	/^[n-z].*/i: group2
+.RE
+.IP "example path definition:"
+.RS
+regex:/path/to/the/file.txt
+.RE
+.RE
+.SS Regex expressions
+The c-icap regex expressions have the form /regex_definition/flags where "flags"
+is one or more letters, its of them express a flag.
+.IP "Common flags"
+.RS
+g This flag forces the score multiplied by the number of regex
+  expression matches. For example if the expression matches 5
+  times and the devined score value is 10 then the final score
+  will be 50.
+.RE
+.RS
+i Do caseless matching
+.RE
+.RS
+m Match-any-character operators don't match a newline
+  and ^$ operators does not match newlines within data
+.RE
+.IP "If the module compiled using the pcre library the following flags can be used"
+.RS
+s (PCRE_DOTALL)  matches anything including NL
+.RE
+.RS
+x (PCRE_EXTENDED) Ignore whitespace and # comments
+.RE
+.RS
+A (PCRE_ANCHORED) Force pattern anchoring
+.RE
+.RS
+D (PCRE_DOLLAR_ENDONLY) $ not to match newline at end
+.RE
+.RS
+U (PCRE_UNGREEDY) Invert greediness of quantifiers
+.RE
+.RS
+X (PCRE_EXTRA) PCRE extra features
+.RE
+.RS
+u (PCRE_UTF8) Run in UTF-8 mode
+.RE
+
+.SS Runtime information
+Someone can retrieve runtime information using the \fBinfo\fR service. The information includes bytes received and transmited, active services, information about service usage and many other. The information provided in HTML and text format.
+.PP
+\fBExample:\fR
+.IP "Retrieve runtime information from command line:"
+.RS
+c-icap-client \-i localhost \-s "info?view=text" \-req "a_url"
+.RE
+.SH SEE ALSO
+.BR c-icap-client "(8)"
+.BR c-icap-stretch "(8)"
+.BR c-icap-config "(8)"
+.BR c-icap-libicapapi-config "(8)"
+.BR c-icap-mkbdb "(8)"
+.SH BUGS
+Many...
+.SH AUTHOR
+Tsantilas Christos
