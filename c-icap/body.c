@@ -595,8 +595,10 @@ ci_simple_file_t *ci_simple_file_new(ci_off_t maxsize)
     body->bytes_in = 0;
     body->bytes_out = 0;
     body->attributes = NULL;
+#if defined(USE_POSIX_MAPPED_FILES)
     body->mmap_addr = NULL;
     body->mmap_size = 0;
+#endif
 
     return body;
 }
@@ -635,9 +637,10 @@ ci_simple_file_t *ci_simple_file_named_new(char *dir, char *filename,ci_off_t ma
     body->bytes_in = 0;
     body->bytes_out = 0;
     body->attributes = NULL;
-
+#if defined(USE_POSIX_MAPPED_FILES)
     body->mmap_addr = NULL;
     body->mmap_size = 0;
+#endif
 
     return body;
 }
@@ -814,7 +817,6 @@ int ci_simple_file_truncate(ci_simple_file_t *body, ci_off_t new_size)
 
     return 1;
 }
-
 
 const char * ci_simple_file_to_const_string(ci_simple_file_t *body)
 {

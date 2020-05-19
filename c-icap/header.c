@@ -87,7 +87,7 @@ const char *ci_options_headers[] = {
 const struct ci_error_code ci_error_codes[] = {
     {100, "Continue"},         /*Continue after ICAP Preview */
     {200, "OK"},
-    {204, "No Content"},       /*No modifications needed */
+    {204, "Unmodified"},       /*No modifications needed */
     {206, "Partial Content"},  /*Partial content modification*/
     {400, "Bad request"},      /*Bad request */
     {401, "Unauthorized"},
@@ -498,7 +498,6 @@ int ci_headers_iterate(ci_headers_list_t * h, void *data, void (*fn)(void *, con
         for (j = 0;  j < sizeof(header)-1 && *s != ':' && *s != ' ' &&  *s != '\0' && *s != '\r' && *s != '\n'; s++, j++)
             header[j] = *s;
         header[j] = '\0';
-        j = 0;
         if (*s == ':') {
             s++;
         } else {

@@ -328,7 +328,7 @@ const void *mc_cache_search(struct ci_cache *cache, const void *key, void **val,
 #if USE_CI_BUFFERS
         *val = value;
 #else
-        if (value_len) {
+        if (value && value_len) {
             *val = ci_buffer_alloc(value_len);
             if (!*val) {
                 free(value);
@@ -434,7 +434,7 @@ int mc_cfg_servers_set(const char *directive, const char **argv, void *setdata)
         strncpy(srv.hostname, argv[argc], HOSTNAME_LEN);
         srv.hostname[HOSTNAME_LEN - 1] = '\0';
         if (srv.hostname[0] != '/' && (s = strchr(srv.hostname, ':')) != NULL) {
-            s = '\0';
+            *s = '\0';
             s++;
             srv.port = atoi(s);
             if (!srv.port)
@@ -512,7 +512,7 @@ int computekey(char *mckey, const char *key, const char *search_domain)
     /*we need to use keys in the form "search_domain:key"
       We can not use keys bigger than MC_MAXKEYLEN
      */
-    if (strlen(key)+strlen(search_domain)+1 < MC_MAXKEYLEN) {
+    if (strlen(key)+strlen(search_domain)+2 < MC_MAXKEYLEN) {
         mckeylen = sprintf(mckey, "v%s:%s", search_domain, key);
     } else if (USE_MD5_SUM_KEYS) {
         ci_MD5Init(&md5);

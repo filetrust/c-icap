@@ -240,15 +240,21 @@ int file_log_open()
         if (lf->log_fmt == NULL)
             lf->log_fmt = (char *)DEFAULT_LOG_FORMAT;
 
+        if (ci_thread_rwlock_init(&(lf->rwlock)) != 0) {
+            ci_debug_printf (1, "WARNING! Can not initialize structures for log file: %s\n", lf->file);
+            continue;
+        }
+
         lf->access_log = logfile_open(lf->file);
         if (!lf->access_log) {
             error = 1;
             ci_debug_printf (1, "WARNING! Can not open log file: %s\n", lf->file);
         }
-        ret = ci_thread_rwlock_init(&(lf->rwlock)); // Initialize logfile::rwlock
     }
 
     ret = ci_thread_rwlock_init(&systemlog_rwlock);
+    if (ret != 0)
+        return 0;
     server_log = logfile_open(SERVER_LOG_FILE);
     if (!server_log)
         return 0;
@@ -330,17 +336,18 @@ void file_log_access(ci_request_t *req)
 
 void file_log_server(const char *server, const char *format, va_list ap)
 {
-    char buf[STR_TIME_SIZE];
+    char buf[1024];
 
     if (!server_log)
         return;
 
-    ci_strtime(buf);
+    ci_strtime(buf); /* requires STR_TIME_SIZE=64 bytes size */
+    const size_t len = strlen(buf);
+    const size_t written = snprintf(buf + len,  sizeof(buf) - len, ", %s, %s", server, format);
+    assert(written < sizeof(buf) - len);
     ci_thread_rwlock_rdlock(&systemlog_rwlock); /*obtain a read lock*/
-    fprintf(server_log, "%s, %s, ", buf, server);
-    vfprintf(server_log, format, ap);
+    vfprintf(server_log, buf, ap);
     ci_thread_rwlock_unlock(&systemlog_rwlock); /*release a read lock*/
-//     fprintf(server_log,"\n");
 }
 
 

@@ -5,61 +5,61 @@
 
 
 /*C_ICAP VERSION*/
-#define C_ICAP_HEX_VERSION @C_ICAP_HEX_VERSION@
+#define C_ICAP_HEX_VERSION 0x000000050006
 
 /* Define USE_IPV6 if we are supporting ipv6 */
-#if @USE_IPV6@
+#if 0
 #define USE_IPV6
 #endif
 
-#if @USE_OPENSSL@
+#if 1
 #define USE_OPENSSL
 #endif
 
-#if @SYSV_IPC@
+#if 1
 #define USE_SYSV_IPC
 #endif
 
-#if  @POSIX_MAPPED_FILES@
+#if  1
 #define USE_POSIX_MAPPED_FILES
 #endif
 
-#if @POSIX_SHARED_MEM@
+#if 1
 #define USE_POSIX_SHARED_MEM
 #endif
 
-#if @SYSV_IPC@
+#if 1
 #   define USE_SYSV_IPC_MUTEX
 #endif
-#if @POSIX_FILE_LOCK@
+#if 1
 #  define USE_POSIX_FILE_LOCK
 #endif
-#if @POSIX_SEMAPHORES@
+#if 1
 #  define USE_POSIX_SEMAPHORES
 #endif
 
-#if @PTHREADS_RWLOCK@
+#if 1
 #define USE_PTHREADS_RWLOCK
 #endif
 
-#if @USE_REGEX@
+#if 1
 #define USE_REGEX
 #endif
 
-#if @USE_COMPAT@
+#if 1
 #define __CI_COMPAT
 #endif
 
-#if @USE_POLL@
+#if 1
 #define USE_POLL
 #endif
 
 /*The following maybe should used...*/
-#if @SYS_TYPES_H@
+#if 1
 #define __SYS_TYPES_H_EXISTS
 #endif
 
-#if @INTTYPES_H@
+#if 1
 #define __INTTYPES_H_EXISTS
 #endif
 
@@ -80,10 +80,10 @@
   The c-icap should not use int32_t/uint32_t/int16_t/uint16_t types
 */
 
-#define CI_SIZEOF_VOID_P @DEFINE_SIZE_VOID_P@
+#define CI_SIZEOF_VOID_P 8
 
 /* typedef off_t  if <sys/types.h> does not define. */
-#if @DEFINE_OFF_T@
+#if 0
 #if CI_SIZEOF_VOID_P == 8
 typedef long long off_t;
 #define CI_SIZEOF_OFF_T 8
@@ -93,12 +93,12 @@ typedef long off_t;
 #else
 #error "Unhandled size of void *"
 #endif
-#else /*if @DEFINE_OFF_T@*/
-#define CI_SIZEOF_OFF_T @DEFINE_SIZE_OFF_T@
+#else /*if 0*/
+#define CI_SIZEOF_OFF_T 8
 #endif
 
 /* typedef size_t if <sys/types.h> does not define. */
-#if @DEFINE_SIZE_T@
+#if 0
 #if SIZEOF_VOID_P == 8
 typedef unsigned long long size_t;
 #elif SIZEOF_VOID_P == 4
@@ -108,23 +108,23 @@ typedef unsigned int size_t;
 #endif
 #endif
 
-#if @DEFINE_UINT8@
+#if 0
 typedef unsigned char uint8_t;
 #endif
 
-#if @DEFINE_INT8@
+#if 0
 typedef char int8_t;
 #endif
 
-#if @DEFINE_UINT64@
+#if 0
 typedef unsigned long long uint64_t;
 #endif
 
-#if @DEFINE_INT64@
+#if 0
 typedef long long int64_t;
 #endif
 
-#if @VISIBILITY_ATTR@
+#if 1
 #define USE_VISIBILITY_ATTRIBUTE
 #endif
 

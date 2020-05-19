@@ -68,18 +68,18 @@ static int STAT_ALLOW204 = -1;
 
 void request_stats_init()
 {
-    STAT_REQUESTS = ci_stat_entry_register("REQUESTS", CI_STAT_INT64_T, "General");
-    STAT_REQMODS = ci_stat_entry_register("REQMODS", CI_STAT_INT64_T, "General");
-    STAT_RESPMODS = ci_stat_entry_register("RESPMODS", CI_STAT_INT64_T, "General");
-    STAT_OPTIONS = ci_stat_entry_register("OPTIONS", CI_STAT_INT64_T, "General");
-    STAT_FAILED_REQUESTS = ci_stat_entry_register("FAILED REQUESTS", CI_STAT_INT64_T, "General");
-    STAT_ALLOW204 = ci_stat_entry_register("ALLOW 204", CI_STAT_INT64_T, "General");
-    STAT_BYTES_IN = ci_stat_entry_register("BYTES IN", CI_STAT_KBS_T, "General");
-    STAT_BYTES_OUT = ci_stat_entry_register("BYTES OUT", CI_STAT_KBS_T, "General");
-    STAT_HTTP_BYTES_IN = ci_stat_entry_register("HTTP BYTES IN", CI_STAT_KBS_T, "General");
-    STAT_HTTP_BYTES_OUT = ci_stat_entry_register("HTTP BYTES OUT", CI_STAT_KBS_T, "General");
-    STAT_BODY_BYTES_IN = ci_stat_entry_register("BODY BYTES IN", CI_STAT_KBS_T, "General");
-    STAT_BODY_BYTES_OUT = ci_stat_entry_register("BODY BYTES OUT", CI_STAT_KBS_T, "General");
+    STAT_REQUESTS = ci_stat_entry_register("REQUESTS", STAT_INT64_T, "General");
+    STAT_REQMODS = ci_stat_entry_register("REQMODS", STAT_INT64_T, "General");
+    STAT_RESPMODS = ci_stat_entry_register("RESPMODS", STAT_INT64_T, "General");
+    STAT_OPTIONS = ci_stat_entry_register("OPTIONS", STAT_INT64_T, "General");
+    STAT_FAILED_REQUESTS = ci_stat_entry_register("FAILED REQUESTS", STAT_INT64_T, "General");
+    STAT_ALLOW204 = ci_stat_entry_register("ALLOW 204", STAT_INT64_T, "General");
+    STAT_BYTES_IN = ci_stat_entry_register("BYTES IN", STAT_KBS_T, "General");
+    STAT_BYTES_OUT = ci_stat_entry_register("BYTES OUT", STAT_KBS_T, "General");
+    STAT_HTTP_BYTES_IN = ci_stat_entry_register("HTTP BYTES IN", STAT_KBS_T, "General");
+    STAT_HTTP_BYTES_OUT = ci_stat_entry_register("HTTP BYTES OUT", STAT_KBS_T, "General");
+    STAT_BODY_BYTES_IN = ci_stat_entry_register("BODY BYTES IN", STAT_KBS_T, "General");
+    STAT_BODY_BYTES_OUT = ci_stat_entry_register("BODY BYTES OUT", STAT_KBS_T, "General");
 }
 
 static int wait_for_data(ci_connection_t *conn, int secs, int what_wait)
@@ -378,7 +378,8 @@ static int parse_request(ci_request_t * req, char *buf)
                        len : (MAX_SERVICE_ARGS - args_len));
                 strncpy(req->args + args_len, start, len);
                 req->args[args_len + len] = '\0';
-            }
+            } else
+                return EC_400;
         }      /*end of parsing args */
     }
 
@@ -459,6 +460,8 @@ static int check_request(ci_request_t *req)
         if (req->entities[3] != NULL)
             return EC_400;
         else if (req->entities[2] != NULL) {
+            assert(req->entities[0]);
+            assert(req->entities[1]);
             if (req->entities[0]->type != ICAP_REQ_HDR)
                 return EC_400;
             if (req->entities[1]->type != ICAP_RES_HDR)
@@ -796,7 +799,7 @@ static int format_body_chunk(ci_request_t * req)
         req->remain_send_block_bytes += def_bytes + 2;
     } else if (req->remain_send_block_bytes == CI_EOF) {
         if (req->return_code == EC_206 && req->i206_use_original_body >= 0) {
-            def_bytes = sprintf(req->wbuf, "0; use-original-body=%ld\r\n\r\n",
+            def_bytes = sprintf(req->wbuf, "0; use-original-body=%" PRId64 "\r\n\r\n",
                                 req->i206_use_original_body );
             req->pstrblock_responce = req->wbuf;
             req->remain_send_block_bytes = def_bytes;
@@ -950,7 +953,6 @@ static int get_send_body(ci_request_t * req, int parse_only)
     if (req->pstrblock_read_len == 0)
         action = ci_wait_for_read;
     do {
-        ret = 0;
         if (action) {
             ci_debug_printf(9, "Going to %s/%s data\n",
                             (action & ci_wait_for_read ? "Read" : "-"),
@@ -1029,7 +1031,6 @@ static int get_send_body(ci_request_t * req, int parse_only)
             } else
                 rbytes = 0;
 
-            no_io = 0;
             ci_debug_printf(9, "get send body: going to write/read: %d/%d bytes\n", wbytes, rbytes);
             if ((*service_io)
                     (rchunkdata, &rbytes, wchunkdata, &wbytes, req->eof_received,
@@ -1075,7 +1076,20 @@ static int get_send_body(ci_request_t * req, int parse_only)
 
     if (!action) {
         ci_debug_printf(1,
-                        "Bug in the service. Please report to the service author!!!!\n");
+                        "Bug in the service '%s'. "
+                        "Please report to the service author!!!!\n"
+                        "request status: %d\n"
+                        "request data locked?: %d\n"
+                        "Write to module pending: %d\n"
+                        "Remain send block bytes: %d\n"
+                        "Read block len: %d\n",
+                        req->service,
+                        req->status,
+                        req->data_locked,
+                        req->write_to_module_pending,
+                        req->remain_send_block_bytes,
+                        req->pstrblock_read_len
+            );
     } else {
         ci_debug_printf(5, "Error reading from network......\n");
     }
@@ -1514,7 +1528,7 @@ static int do_end_of_data(ci_request_t * req)
 static int do_request(ci_request_t * req)
 {
     ci_service_xdata_t *srv_xdata = NULL;
-    int res, preview_status = 0, auth_status = CI_ACCESS_ALLOW;
+    int res, preview_status = 0, auth_status;
     int ret_status = CI_OK; /*By default ret_status is CI_OK, on error must set to CI_ERROR*/
     res = parse_header(req);
     if (res != EC_100) {
@@ -1537,7 +1551,6 @@ static int do_request(ci_request_t * req)
         return CI_ERROR;
     }
 
-    auth_status = req->access_type;
     if ((auth_status = access_check_request(req)) == CI_ACCESS_DENY) {
         req->keepalive = 0;
         if (req->auth_required) {
@@ -1545,6 +1558,7 @@ static int do_request(ci_request_t * req)
         } else {
             ec_responce(req, EC_403); /*Forbitten*/
         }
+        ci_debug_printf(3, "Request not authenticated, status: %d\n", auth_status);
         return CI_ERROR;      /*Or something that means authentication error */
     }
 
@@ -1573,7 +1587,6 @@ static int do_request(ci_request_t * req)
         break;
     case ICAP_REQMOD:
     case ICAP_RESPMOD:
-        preview_status = CI_NO_STATUS;
         if (req->preview >= 0) /*we are inside preview*/
             preview_status = do_request_preview(req);
         else {

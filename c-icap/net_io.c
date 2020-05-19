@@ -170,7 +170,7 @@ void ci_copy_connection(ci_connection_t * dest, ci_connection_t * src)
     ci_copy_sockaddr(&dest->claddr, &src->claddr);
     ci_copy_sockaddr(&dest->srvaddr, &src->srvaddr);
 #if defined(USE_OPENSSL)
-    dest->tls_conn_pcontext = src->tls_conn_pcontext;
+    dest->bio = src->bio;
 #endif
     dest->flags = src->flags;
 }
@@ -179,7 +179,7 @@ void ci_connection_reset(ci_connection_t *conn)
 {
     conn->fd = -1;
 #if defined(USE_OPENSSL)
-    conn->tls_conn_pcontext = NULL;
+    conn->bio = NULL;
 #endif
     conn->flags = 0;
 }
@@ -289,7 +289,7 @@ int ci_connect_to_nonblock(ci_connection_t *connection, const char *servername, 
                             ci_strerror(errno,  errBuf, sizeof(errBuf)));
             return -1;
         }
-        connection->flags &= CI_CONNECTION_CONNECTED;
+        connection->flags |= CI_CONNECTION_CONNECTED;
     }
 
     return 1;
@@ -305,8 +305,11 @@ ci_connection_t *ci_connect_to(const char *servername, int port, int proto, int 
     }
 
     ret = ci_connect_to_nonblock(connection, servername, port, proto);
-    if (ret < 0)
+    if (ret < 0) {
+        ci_debug_printf(1, "Failed to initialize ci_connection_t object\n");
+        ci_connection_destroy(connection);
         return NULL;
+    }
 
     do {
         ret = ci_wait_for_data(connection->fd, timeout, ci_wait_for_write);
@@ -329,7 +332,7 @@ int ci_connection_wait(ci_connection_t *conn, int secs, int what_wait)
 {
     assert(conn);
 #ifdef USE_OPENSSL
-    if (ci_connection_is_tls(conn))
+    if (conn->bio)
         return ci_connection_wait_tls(conn, secs, what_wait);
 #endif
     return ci_wait_for_data(conn->fd, secs, what_wait);
@@ -339,7 +342,7 @@ int ci_connection_read(ci_connection_t *conn, void *buf, size_t count, int timeo
 {
     assert(conn);
 #ifdef USE_OPENSSL
-    if (ci_connection_is_tls(conn))
+    if (conn->bio)
         return ci_connection_read_tls(conn, buf, count, timeout);
 #endif
     return ci_read(conn->fd, buf, count, timeout);
@@ -349,7 +352,7 @@ int ci_connection_write(ci_connection_t *conn, void *buf, size_t count, int time
 {
     assert(conn);
 #ifdef USE_OPENSSL
-    if (ci_connection_is_tls(conn))
+    if (conn->bio)
         return ci_connection_write_tls(conn, buf, count, timeout);
 #endif
     return ci_write(conn->fd, buf, count, timeout);
@@ -359,7 +362,7 @@ int ci_connection_read_nonblock(ci_connection_t *conn, void *buf, size_t count)
 {
     assert(conn);
 #ifdef USE_OPENSSL
-    if (ci_connection_is_tls(conn))
+    if (conn->bio)
         return ci_connection_read_nonblock_tls(conn, buf, count);
 #endif
     return ci_read_nonblock(conn->fd, buf, count);
@@ -369,7 +372,7 @@ int ci_connection_write_nonblock(ci_connection_t *conn, void *buf, size_t count)
 {
     assert(conn);
 #ifdef USE_OPENSSL
-    if (ci_connection_is_tls(conn))
+    if (conn->bio)
         return ci_connection_write_nonblock_tls(conn, buf, count);
 #endif
     return ci_write_nonblock(conn->fd, buf, count);
@@ -379,7 +382,7 @@ int ci_connection_linger_close(ci_connection_t *conn, int timeout)
 {
     assert(conn);
 #ifdef USE_OPENSSL
-    if (ci_connection_is_tls(conn))
+    if (conn->bio)
         return ci_connection_linger_close_tls(conn, timeout);
 #endif
     return ci_linger_close(conn->fd, timeout);
@@ -389,7 +392,7 @@ int ci_connection_hard_close(ci_connection_t *conn)
 {
     assert(conn);
 #ifdef USE_OPENSSL
-    if (ci_connection_is_tls(conn))
+    if (conn->bio)
         return ci_connection_hard_close_tls(conn);
 #endif
     close(conn->fd);

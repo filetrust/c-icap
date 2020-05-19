@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2004-2018 Christos Tsantilas
+ *  Copyright (C) 2004-2008 Christos Tsantilas
  *
  *  This program is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU Lesser General Public
@@ -19,7 +19,6 @@
 
 #include "common.h"
 #include "c-icap.h"
-#include "util.h"
 #include <stdio.h>
 #include <ctype.h>
 #include <errno.h>
@@ -36,50 +35,6 @@
 #include "request.h"
 #include "mem.h"
 #include "filetype.h"
-
-#define MAGIC_SIZE 64
-#define NAME_SIZE 31
-#define DESCR_SIZE 63
-
-struct ci_data_type {
-    char name[NAME_SIZE+1];
-    char descr[DESCR_SIZE+1];
-    int groups[CI_MAGIC_MAX_TYPE_GROUPS];
-};
-
-struct ci_data_group {
-    char name[NAME_SIZE+1];
-    char descr[DESCR_SIZE+1];
-};
-
-struct ci_magic_block {
-    int offset;
-    unsigned char magic[MAGIC_SIZE+1];
-    size_t len;
-};
-
-typedef struct ci_magic {
-    unsigned int type;
-    int blocks_num;
-    struct ci_magic_block blocks[];
-} ci_magic_t;
-
-#define MAX_MAGIC_BLOCKS 64
-struct ci_magic_record {
-    struct ci_magic_block blocks[MAX_MAGIC_BLOCKS];
-    int blocks_num;
-    char type[NAME_SIZE + 1];
-    char *groups[CI_MAGIC_MAX_TYPE_GROUPS + 1];
-    char descr[DESCR_SIZE + 1];
-};
-
-#define DECLARE_ARRAY(array,type) type *array;int array##_num;int array##_size;
-
-struct ci_magics_db {
-    DECLARE_ARRAY(types,struct ci_data_type)
-    DECLARE_ARRAY(groups,struct ci_data_group)
-    DECLARE_ARRAY(magics,struct ci_magic *)
-};
 
 static struct ci_magics_db *_MAGIC_DB = NULL;
 
@@ -99,6 +54,15 @@ struct ci_data_group predefined_groups[] = {
     {"", ""}
 };
 
+struct ci_magic_record {
+    int offset;
+    unsigned char magic[MAGIC_SIZE + 1];
+    size_t len;
+    char type[NAME_SIZE + 1];
+    char *groups[MAX_GROUPS + 1];
+    char descr[DESCR_SIZE + 1];
+};
+
 #define DECLARE_ARRAY_FUNCTIONS(structure,array,type,size) int array##_init(structure *db){ \
                                                      if((db->array=malloc(size*sizeof(type)))==NULL) \
                                                       return 0; \
@@ -116,7 +80,7 @@ struct ci_data_group predefined_groups[] = {
 
 DECLARE_ARRAY_FUNCTIONS(struct ci_magics_db, types, struct ci_data_type, 50)
 DECLARE_ARRAY_FUNCTIONS(struct ci_magics_db, groups, struct ci_data_group, 15)
-DECLARE_ARRAY_FUNCTIONS(struct ci_magics_db, magics, struct ci_magic *, 50)
+DECLARE_ARRAY_FUNCTIONS(struct ci_magics_db, magics, struct ci_magic, 50)
 
 
 int types_add(struct ci_magics_db *db, const char *name, const char *descr, int *groups)
@@ -124,14 +88,13 @@ int types_add(struct ci_magics_db *db, const char *name, const char *descr, int 
     struct ci_data_type *newdata;
     int indx, i;
 
-    CHECK_SIZE(db, types, struct ci_data_type, 50) indx = db->types_num;
+    CHECK_SIZE(db, types, struct ci_data_type, 50);
+    indx = db->types_num;
     db->types_num++;
-    strncpy(db->types[indx].name, name, NAME_SIZE);
-    db->types[indx].name[NAME_SIZE] = '\0';
-    strncpy(db->types[indx].descr, descr, DESCR_SIZE);
-    db->types[indx].descr[DESCR_SIZE] = '\0';
+    strcpy(db->types[indx].name, name);
+    strcpy(db->types[indx].descr, descr);
     i = 0;
-    while (groups[i] >= 0 && i < CI_MAGIC_MAX_TYPE_GROUPS) {
+    while (groups[i] >= 0 && i < MAX_GROUPS) {
         db->types[indx].groups[i] = groups[i];
         i++;
     }
@@ -144,34 +107,32 @@ int groups_add(struct ci_magics_db *db, const char *name, const char *descr)
     struct ci_data_group *newdata;
     int indx;
 
-    CHECK_SIZE(db, groups, struct ci_data_group, 15) indx = db->groups_num;
+    CHECK_SIZE(db, groups, struct ci_data_group, 15);
+    indx = db->groups_num;
     db->groups_num++;
-    strncpy(db->groups[indx].name, name, NAME_SIZE);
-    db->groups[indx].name[NAME_SIZE] = '\0';
-    strncpy(db->groups[indx].descr, descr, DESCR_SIZE);
-    db->groups[indx].descr[DESCR_SIZE] = '\0';
+    strcpy(db->groups[indx].name, name);
+    strcpy(db->groups[indx].descr, descr);
     return indx;
 }
 
-static int magic_add(struct ci_magics_db *db, int type,const struct ci_magic_block *blocks, int blocks_num)
+int magics_add(struct ci_magics_db *db, int offset, unsigned char *magic,
+               size_t len, int type)
 {
-    struct ci_magic **newdata;
+    struct ci_magic *newdata;
     int indx;
-    CHECK_SIZE(db, magics, struct ci_magic *, 50);
-    indx = db->magics_num;
-    /*The ci_magic struct plus space for the ci_magic_blocks array (the ci_magic::blocks flexible array)*/
-    db->magics[indx] = malloc(sizeof(struct ci_magic) + blocks_num * sizeof(struct ci_magic_block));
-    if (db->magics[indx]) {
-        db->magics[indx]->type = type;
-        memcpy(db->magics[indx]->blocks, blocks, blocks_num * sizeof(struct ci_magic_block));
-        db->magics[indx]->blocks_num = blocks_num;
-        db->magics_num++;
-        return indx;
-    }
-    return -1;
+
+    CHECK_SIZE(db, magics, struct ci_magic, 50) indx = db->magics_num;
+    db->magics_num++;
+
+    db->magics[indx].type = type;
+    db->magics[indx].offset = offset;
+    db->magics[indx].len = len;
+    memcpy(db->magics[indx].magic, magic, len);
+
+    return indx;
 }
 
-static int ci_get_data_type_id(struct ci_magics_db *db, const char *name)
+int ci_get_data_type_id(struct ci_magics_db *db, const char *name)
 {
     int i = 0;
     for (i = 0; i < db->types_num; i++) {
@@ -181,7 +142,7 @@ static int ci_get_data_type_id(struct ci_magics_db *db, const char *name)
     return -1;
 }
 
-static int ci_get_data_group_id(struct ci_magics_db *db, const char *group)
+int ci_get_data_group_id(struct ci_magics_db *db, const char *group)
 {
     int i = 0;
     for (i = 0; i < db->groups_num; i++) {
@@ -191,13 +152,13 @@ static int ci_get_data_group_id(struct ci_magics_db *db, const char *group)
     return -1;
 }
 
-static int ci_belongs_to_group(struct ci_magics_db *db, int type, int group)
+int ci_belongs_to_group(struct ci_magics_db *db, int type, int group)
 {
     int i;
     if (db->types_num < type)
         return 0;
     i = 0;
-    while (db->types[type].groups[i] >= 0 && i < CI_MAGIC_MAX_TYPE_GROUPS) {
+    while (db->types[type].groups[i] >= 0 && i < MAX_GROUPS) {
         if (db->types[type].groups[i] == group)
             return 1;
         i++;
@@ -205,7 +166,7 @@ static int ci_belongs_to_group(struct ci_magics_db *db, int type, int group)
     return 0;
 }
 
-static void reset_magic_record(struct ci_magic_record *record)
+void free_records_group(struct ci_magic_record *record)
 {
     int i;
     i = 0;
@@ -214,31 +175,24 @@ static void reset_magic_record(struct ci_magic_record *record)
         record->groups[i] = NULL;
         i++;
     }
-    memset(record, 0, sizeof(struct ci_magic_record));
 }
 
 #define RECORD_LINE 32768
 static int parse_record(char *line, struct ci_magic_record *record)
 {
-    char *s, *end;
-    char num[4];
+    char *s, *end, num[4];
     int len, c, i;
 
-    if ((len = strlen(line)) == 0) /*Empty line*/
+    if ((len = strlen(line)) < 4)      /*must have at least 4 ':' */
         return 0;
-
-    if (line[0] == '#') /*Comment ....... */
+    if (line[0] == '#')        /*Comment ....... */
         return 0;
-
-    if (record->blocks_num == MAX_MAGIC_BLOCKS)
-        return -1;
-
+    line[--len] = '\0';        /*the \n at the end of */
     s = line;
     errno = 0;
-    record->blocks[record->blocks_num].offset = strtol(s, &end, 10);
-    while (*end && isspace(*end)) ++end;
+    record->offset = strtol(s, &end, 10);
     if (*end != ':' || errno != 0)
-        return -1;
+        return 0;
 
     s = end + 1;
     i = 0;
@@ -246,14 +200,13 @@ static int parse_record(char *line, struct ci_magic_record *record)
     while (*s != ':' && s < end && i < MAGIC_SIZE) {
         if (*s == '\\') {
             s++;
-            c = -1;
-            if (*s == 'x' && (end - s) >= 2) {
+            if (*s == 'x') {
                 s++;
                 num[0] = *(s++);
                 num[1] = *(s++);
                 num[2] = '\0';
                 c = strtol(num, NULL, 16);
-            } else if ((end - s) >= 3) {
+            } else {
                 num[0] = *(s++);
                 num[1] = *(s++);
                 num[2] = *(s++);
@@ -261,41 +214,32 @@ static int parse_record(char *line, struct ci_magic_record *record)
                 c = strtol(num, NULL, 8);
             }
             if (c > 256 || c < 0) {
-                return -1;
+                return -2;
             }
-            record->blocks[record->blocks_num].magic[i++] = c;
+            record->magic[i++] = c;
         } else {
-            record->blocks[record->blocks_num].magic[i++] = *s;
+            record->magic[i++] = *s;
             s++;
         }
     }
-    record->blocks[record->blocks_num].len = i;
-    ++record->blocks_num;
-    while (*s && isspace(*s)) ++s;
-    if (s >= end || *s != ':') {
-        /*Unexpected end of the line, parse error */
-        return -1;
-    }
-    ++s;
-    if (*s == '\\' && *(s+1) == '\0') {
-        /*Multiline record, continue to the next line */
-        return 0;
-    }
+    record->len = i;
 
+    if (s >= end || *s != ':') {       /*End of the line..... parse error */
+        return -2;
+    }
+    s++;
     if ((end = strchr(s, ':')) == NULL) {
-        return -1;
+        return -2;            /*Parse error */
     }
     *end = '\0';
-    ci_str_trim(s);
     strncpy(record->type, s, NAME_SIZE);
     record->type[NAME_SIZE] = '\0';
     s = end + 1;
 
     if ((end = strchr(s, ':')) == NULL) {
-        return -1;
+        return -2;            /*Parse error */
     }
     *end = '\0';
-    ci_str_trim(s);
     strncpy(record->descr, s, DESCR_SIZE);
     record->descr[DESCR_SIZE] = '\0';
 
@@ -304,17 +248,15 @@ static int parse_record(char *line, struct ci_magic_record *record)
     while ((end = strchr(s, ':')) != NULL) {
         *end = '\0';
         record->groups[i] = malloc(NAME_SIZE + 1);
-        ci_str_trim(s);
         strncpy(record->groups[i], s, NAME_SIZE);
         record->groups[i][NAME_SIZE] = '\0';
         i++;
-        if (i >= CI_MAGIC_MAX_TYPE_GROUPS - 1)
+        if (i >= MAX_GROUPS - 1)
             break;
         s = end + 1;
     }
 
     record->groups[i] = malloc(NAME_SIZE + 1);
-    ci_str_trim(s);
     strncpy(record->groups[i], s, NAME_SIZE);
     record->groups[i][NAME_SIZE] = '\0';
     i++;
@@ -325,25 +267,36 @@ static int parse_record(char *line, struct ci_magic_record *record)
 struct ci_magics_db *ci_magics_db_init()
 {
     struct ci_magics_db *db;
-    int i;
+    int i, ret;
     db = malloc(sizeof(struct ci_magics_db));
     if (!db)
         return NULL;
 
-    types_init(db);
-    groups_init(db);
-    magics_init(db);
+    memset(db, 0, sizeof(struct ci_magics_db));
+    ret = types_init(db) && groups_init(db) && magics_init(db);
+    if (!ret) {
+        ci_magics_db_release(db);
+        return NULL;
+    }
 
     i = 0;                     /*Copy predefined types */
     while (predefined_types[i].name[0] != '\0') {
-        types_add(db, predefined_types[i].name, predefined_types[i].descr,
-                  predefined_types[i].groups);
+        ret = types_add(db, predefined_types[i].name, predefined_types[i].descr,
+                        predefined_types[i].groups);
+        if (ret < 0) { /*memory allocation ?*/
+            ci_magics_db_release(db);
+            return NULL;
+        }
         i++;
     }
 
     i = 0;                     /*Copy predefined groups */
     while (predefined_groups[i].name[0] != '\0') {
-        groups_add(db, predefined_groups[i].name, predefined_groups[i].descr);
+        ret = groups_add(db, predefined_groups[i].name, predefined_groups[i].descr);
+        if (ret < 0) { /*memory allocation ?*/
+            ci_magics_db_release(db);
+            return NULL;
+        }
         i++;
     }
     return db;
@@ -351,21 +304,20 @@ struct ci_magics_db *ci_magics_db_init()
 
 void ci_magics_db_release(struct ci_magics_db *db)
 {
-    int i;
-    free(db->types);
-    free(db->groups);
-    for (i = 0; i < db->magics_num; ++i) {
-        free(db->magics[i]);
-    }
-    free(db->magics);
+    if (db->types)
+        free(db->types);
+    if (db->groups)
+        free(db->groups);
+    if (db->magics)
+        free(db->magics);
     free(db);
 }
 
 int ci_magics_db_file_add(struct ci_magics_db *db, const char *filename)
 {
     int type;
-    int ret, group, i, lineNum;
-    int groups[CI_MAGIC_MAX_TYPE_GROUPS + 1];
+    int ret, error, group, i, lineNum;
+    int groups[MAX_GROUPS + 1];
     char line[RECORD_LINE];
     struct ci_magic_record record;
     FILE *f;
@@ -376,42 +328,38 @@ int ci_magics_db_file_add(struct ci_magics_db *db, const char *filename)
     }
 
     lineNum = 0;
-    ret = 0;
-    while (fgets(line, RECORD_LINE, f) != NULL) {
+    error = 0;
+    while (!error && fgets(line, RECORD_LINE, f) != NULL) {
         lineNum ++;
-        ci_str_trim(line);
         ret = parse_record(line, &record);
         if (!ret)
             continue;
-        if (ret < 0)
+        if (ret < 0) {
+            error = 1;
             break;
+        }
         if ((type = ci_get_data_type_id(db, record.type)) < 0) {
-            i = 0;
-            while (record.groups[i] != NULL && i < CI_MAGIC_MAX_TYPE_GROUPS) {
-                if ((group =
-                            ci_get_data_group_id(db, record.groups[i])) < 0) {
+            for (i=0; record.groups[i] != NULL && !error && i < MAX_GROUPS; ++i) {
+                if ((group = ci_get_data_group_id(db, record.groups[i])) < 0) {
                     group = groups_add(db, record.groups[i], "");
                 }
                 groups[i] = group;
-                i++;
+                if (group < 0)
+                    error = 1;
             }
-            groups[i] = -1;
-            type = types_add(db, record.type, record.descr, groups);
-            if (type < 0) {
-                ret = -1;
-                break;
+            if (!error) {
+                groups[i] = -1;
+                type = types_add(db, record.type, record.descr, groups);
+                if (type < 0)
+                    error = 1;
             }
         }
-
-        if (magic_add(db, (unsigned int) type, record.blocks, record.blocks_num) < 0) {
-            ret = -1;
-            break;
-        }
-
-        reset_magic_record(&record);
+        if (magics_add(db, record.offset, record.magic, record.len, (unsigned int) type) < 0)
+            error = 1;
+        free_records_group(&record);
     }
     fclose(f);
-    if (ret < 0) {            /*An error occured ..... */
+    if (error) {            /*An error occured ..... */
         ci_debug_printf(1, "Error reading magic file (%d), line number: %d\nBuggy line: %s\n", ret, lineNum, line);
         return 0;
     }
@@ -432,56 +380,17 @@ struct ci_magics_db *ci_magics_db_build(const char *filename)
     return db;
 }
 
-int ci_magics_db_types_num(const ci_magics_db_t *db)
+int check_magics(struct ci_magics_db *db, const char *buf, int buflen)
 {
-    return (db != NULL ? db->types_num : 0);
-}
-
-int ci_magics_db_groups_num(const ci_magics_db_t *db)
-{
-    return (db != NULL ? db->groups_num:0);
-}
-
-const char *ci_magics_db_type_name(const ci_magics_db_t *db, int i)
-{
-    return (db != NULL && i < db->types_num && i >= 0 ? db->types[i].name : NULL);
-}
-
-const int *ci_magics_db_type_groups(const ci_magics_db_t *db,int i)
-{
-    return (db != NULL && i < db->types_num && i >= 0 ? db->types[i].groups : NULL);
-}
-
-const char *ci_magics_db_type_descr(const ci_magics_db_t * db,int i)
-{
-    return (db != NULL && i < db->types_num && i >= 0 ? db->types[i].descr : NULL);
-}
-
-const char *ci_magics_db_group_name(const ci_magics_db_t *db,int i)
-{
-    return (db != NULL && i < db->groups_num && i >= 0 ? db->groups[i].name : NULL);
-}
-
-
-static int check_magics(const struct ci_magics_db *db, const char *buf, int buflen)
-{
-    int i, j;
-    int matched;
-    const char *test;
-    int required;;
+    int i;
     for (i = 0; i < db->magics_num; i++) {
-        matched = 0;
-        for (j = 0; j < db->magics[i]->blocks_num; ++j) {
-            test = buf + db->magics[i]->blocks[j].offset;
-            required = db->magics[j]->blocks[j].offset + db->magics[i]->blocks[j].len;
-            if (buflen >= required &&
-                    memcmp(test, db->magics[i]->blocks[j].magic, db->magics[i]->blocks[j].len) == 0)
-                ++matched;
-            else
-                break;
+        if (buflen >= db->magics[i].offset + db->magics[i].len) {
+            if (memcmp
+                    (buf + db->magics[i].offset, db->magics[i].magic,
+                     db->magics[i].len) == 0) {
+                return db->magics[i].type;
+            }
         }
-        if (matched == db->magics[i]->blocks_num)
-            return db->magics[i]->type;
     }
     return -1;
 }
@@ -522,7 +431,7 @@ ISO if res <= 3
 EXTEND if res <= 7
 */
 
-static int check_ascii(unsigned char *buf, int buflen)
+int check_ascii(unsigned char *buf, int buflen)
 {
     unsigned int i, res = 0, type;
     for (i = 0; i < buflen; i++) {     /*May be only a small number (30-50 bytes) of the first data must be checked */
@@ -542,7 +451,7 @@ static int check_ascii(unsigned char *buf, int buflen)
 static unsigned int utf_boundaries[] =
 { 0x0, 0x0, 0x07F, 0x7FF, 0xFFFF, 0x1FFFFF, 0x3FFFFFF };
 
-static int isUTF8(unsigned char *c, int size)
+int isUTF8(unsigned char *c, int size)
 {
     int i, r_size = 0;
     unsigned int ucs_c = 0;
@@ -594,7 +503,7 @@ static int isUTF8(unsigned char *c, int size)
     return r_size;
 }
 
-static int check_unicode(unsigned char *buf, int buflen)
+int check_unicode(unsigned char *buf, int buflen)
 {
     int i, ret = 0;
     int endian = 0;
@@ -639,7 +548,7 @@ static int check_unicode(unsigned char *buf, int buflen)
     return CI_UTF_DATA;
 }
 
-int ci_magics_db_data_type(const struct ci_magics_db *db, const char *buf, int buflen)
+int ci_filetype(struct ci_magics_db *db, const char *buf, int buflen)
 {
     int ret;
 
@@ -657,13 +566,8 @@ int ci_magics_db_data_type(const struct ci_magics_db *db, const char *buf, int b
     return CI_BIN_DATA;        /*binary data */
 }
 
-int ci_filetype(struct ci_magics_db *db, const char *buf, int buflen)
-{
-    return ci_magics_db_data_type(db, buf, buflen);
-}
-
-static int extend_object_type(struct ci_magics_db *db, ci_headers_list_t *headers, const char *buf,
-                              int len, int *iscompressed)
+int extend_object_type(struct ci_magics_db *db, ci_headers_list_t *headers, const char *buf,
+                       int len, int *iscompressed)
 {
     int file_type;
     int unzipped_buf_len = 0;
@@ -694,10 +598,11 @@ static int extend_object_type(struct ci_magics_db *db, ci_headers_list_t *header
 #endif
                     || *iscompressed == CI_ENCODE_DEFLATE
                     || *iscompressed == CI_ENCODE_BROTLI) {
-                unzipped_buf_len = len > 1024 ? len : 1024;
-                if (!(unzipped_buf = ci_buffer_alloc(unzipped_buf_len))) {
-                    ci_debug_printf(1, "Error allocating buffer of size %d for uncompressing previewed object\n", unzipped_buf_len);
-                } else if (ci_uncompress_preview(*iscompressed, buf, len, unzipped_buf, &unzipped_buf_len) != CI_ERROR) {
+                unzipped_buf = ci_buffer_alloc(len); /*Will I implement memory pools? when????? */
+                unzipped_buf_len = len;
+                if (ci_uncompress_preview
+                        (*iscompressed, buf, len, unzipped_buf,
+                         &unzipped_buf_len) != CI_ERROR) {
                     /* 1) unzip and
                        2) checkbuf eq to unziped data
                        3) len eq to unzipped data len
@@ -705,13 +610,18 @@ static int extend_object_type(struct ci_magics_db *db, ci_headers_list_t *header
                     checkbuf = unzipped_buf;
                     len = unzipped_buf_len;
                 } else {
-                    ci_debug_printf(3,"Error uncompressing encoded object\n");
+                    ci_debug_printf(3,
+                                    "Error uncompressing encoded object\n");
+                    ci_buffer_free(unzipped_buf);
+                    unzipped_buf = NULL;
+                    /* The checkbuf points to raw buf,
+                       type will be zipped data*/
                 }
             }
         }
     }
 
-    file_type = ci_magics_db_data_type(db, checkbuf, len);
+    file_type = ci_filetype(db, checkbuf, len);
 
     ci_debug_printf(7, "File type returned: %s,%s\n",
                     ci_data_type_name(db, file_type),
@@ -739,15 +649,15 @@ static int extend_object_type(struct ci_magics_db *db, ci_headers_list_t *header
     ci_debug_printf(7, "The file type now is: %s,%s\n",
                     ci_data_type_name(db, file_type),
                     ci_data_type_descr(db, file_type));
-
+#ifdef HAVE_ZLIB
     if (unzipped_buf)
         ci_buffer_free(unzipped_buf);
-
+#endif
     return file_type;
 }
 
-static int ci_extend_filetype(struct ci_magics_db *db, ci_request_t *req, const char *buf,
-                              int len, int *iscompressed)
+int ci_extend_filetype(struct ci_magics_db *db, ci_request_t *req, const char *buf,
+                       int len, int *iscompressed)
 {
     ci_headers_list_t *heads;
     if (ci_req_type(req) == ICAP_RESPMOD)
@@ -801,7 +711,7 @@ int ci_magic_data_type(const char *buf, int len)
     if (!_MAGIC_DB)
         return -1;
 
-    return ci_magics_db_data_type(_MAGIC_DB, buf, len);
+    return ci_filetype(_MAGIC_DB, buf, len);
 
 }
 
@@ -838,32 +748,41 @@ int ci_magic_group_check(int type, int group)
     return ci_belongs_to_group(_MAGIC_DB, type, group);
 }
 
+
 int ci_magic_types_count()
 {
-    return ci_magics_db_types_num(_MAGIC_DB);
+    return ci_magic_types_num(_MAGIC_DB);
 }
+
 
 int ci_magic_groups_count()
 {
-    return ci_magics_db_groups_num(_MAGIC_DB);
+    return  ci_magic_groups_num(_MAGIC_DB);
 }
 
-const char * ci_magic_type_name(int type)
+char * ci_magic_type_name(int type)
 {
-    return ci_magics_db_type_name(_MAGIC_DB, type);
+    if (!_MAGIC_DB ||
+            type <= 0 || type >= ci_magic_types_num(_MAGIC_DB))
+        return NULL;
+
+    return ci_data_type_name(_MAGIC_DB, type);
 }
 
-const char * ci_magic_type_descr(int type)
+char * ci_magic_type_descr(int type)
 {
-    return ci_magics_db_type_descr(_MAGIC_DB, type);
+    if (!_MAGIC_DB ||
+            type <= 0 || type >= ci_magic_types_num(_MAGIC_DB))
+        return NULL;
+
+    return ci_data_type_descr(_MAGIC_DB, type);
 }
 
-const char * ci_magic_group_name(int group)
+char * ci_magic_group_name(int group)
 {
-    return ci_magics_db_group_name(_MAGIC_DB, group);
-}
+    if (!_MAGIC_DB ||
+            group <= 0 || group >= ci_magic_groups_num(_MAGIC_DB))
+        return NULL;
 
-const int* ci_magic_type_groups(int type)
-{
-    return ci_magics_db_type_groups(_MAGIC_DB, type);
+    return ci_data_group_name(_MAGIC_DB, group);
 }

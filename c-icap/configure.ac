@@ -1,9 +1,9 @@
 dnl Process this file with autoconf to produce a configure script.
 
 
-AC_INIT(c_icap,m4_normalize(m4_include([VERSION.m4])))
-dnl AC_INIT(c_icap,030606rc1)
-CICAPLIB_VERSION=0:1:0
+dnl AC_INIT(c_icap,m4_normalize(m4_include([VERSION.m4])))
+AC_INIT(c_icap,0.5.6)
+CICAPLIB_VERSION=5:6:0
 AC_SUBST(CICAPLIB_VERSION)
 dnl CICAPLIB_VERSION is the libtool current[:revision[:age]] version info
 dnl libtool directions about version info
@@ -152,7 +152,7 @@ AC_ARG_ENABLE(large_files,
 echo "checking whether large file support should enabled:"$large_file_support
 if test $large_file_support = "yes"; then
    CFLAGS="$CFLAGS -D_FILE_OFFSET_BITS=64"
-#here I must put a check if the -D_FILE_OFFSET_BITS makes the off_t an 64bit integer
+#here I must put a check if the -D_FILE_OFFSET_BITS makes the off_t  an 64bit integer
 # and if not supported warning the user
 #Possibly checks for systems which supports large files using different defines....
 #later .......
@@ -598,13 +598,22 @@ if test "a$libldap" != "ano"; then
         CFLAGS="$CFLAGS -I$libldappath/include"
         LDFLAGS="$LDFLAGS -L$libldappath/lib"
    fi
-   AC_CHECK_LIB(ldap,  ldap_search_ext_s,
-                [libldap="yes"],
+   useldaplib=""
+   AC_CHECK_LIB(ldap_r,  ldap_search_ext_s,
+                [libldap="yes";useldaplib="ldap_r"],
                 [libldap="no"]
                 )
+
+   if test "a$libldap" = "ano"; then
+      AC_CHECK_LIB(ldap,  ldap_search_ext_s,
+                   [libldap="yes";useldaplib="ldap"],
+                   [libldap="no"]
+                   )
+   fi
+
    if test "a$libldap" = "ayes"; then
        AC_DEFINE(HAVE_LDAP, 1, [Define HAVE_LDAP if LDAP libraries are installed])
-       ICFG_BUILD_FLAGS(LDAP, "$libldappath", "-lldap")
+       ICFG_BUILD_FLAGS(LDAP, "$libldappath", "-l$useldaplib -llber")
    fi
    ICFG_STATE_ROLLBACK
 fi
@@ -724,10 +733,6 @@ AC_CHECK_SIZEOF(off_t)
 DEFINE_SIZE_OFF_T=$ac_cv_sizeof_off_t
 AC_SUBST(DEFINE_SIZE_OFF_T)
 
-AC_CHECK_SIZEOF(long)
-DEFINE_SIZE_LONG=$ac_cv_sizeof_long
-AC_SUBST(DEFINE_SIZE_LONG)
-
 AC_CHECK_SIZEOF(void *)
 DEFINE_SIZE_VOID_P=$ac_cv_sizeof_void_p
 AC_SUBST(DEFINE_SIZE_VOID_P)
@@ -750,11 +755,13 @@ AC_SUBST(DEFINE_INT64)
 
 #some type size (currently they are not used)
 AC_CHECK_SIZEOF(short)
-DEFINE_SIZE_SHORT=$ac_cv_sizeof_short
+DEFINE_SIZEOFF_SHORT=$ac_cv_sizeof_short
 AC_CHECK_SIZEOF(int)
-DEFINE_SIZE_INT=$ac_cv_sizeof_int
+DEFINE_SIZEOFF_INT=$ac_cv_sizeof_int
+AC_CHECK_SIZEOF(long)
+DEFINE_SIZEOFF_LONG=$ac_cv_sizeof_long
 AC_CHECK_SIZEOF(long long)
-DEFINE_SIZE_LONG_LONG=$ac_cv_sizeof_long_long
+DEFINE_SIZEOFF_LONG_LONG=$ac_cv_sizeof_long_long
 
 # Checks for library functions.
 

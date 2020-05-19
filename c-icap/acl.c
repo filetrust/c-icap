@@ -506,7 +506,6 @@ void ci_access_entry_release(ci_access_entry_t *list)
     if (!list)
         return;
 
-    access_entry = list;
     while (list) {
         access_entry = list;
         list = list->next;
@@ -919,7 +918,7 @@ int ci_acl_add_data(const char *name, const char *type, const char *data)
 
     if (!spec) {
         ci_debug_printf(1, "Error in acl:%s! Maybe the acl type \"%s\" does not exists!\n",
-                        name, acl_type);
+                        name, type);
         return 0;
     }
     ci_acl_spec_new_data(spec, data);
@@ -1138,7 +1137,7 @@ void *get_data_type(ci_request_t *req, char *param)
     if (type < 0)
         return NULL;
 
-    ret_type = malloc(sizeof(unsigned int));
+    ret_type = malloc(sizeof(int));
     if (!ret_type)
         return NULL;
 
