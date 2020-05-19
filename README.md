@@ -13,7 +13,7 @@ git submodule update
 
 ## Installing
 
-To install, the repo needs to be cloned on to the host server.
+To install, the repo needs to be cloned on to the host server, running Linux.
 
 ### Server
 
@@ -44,3 +44,16 @@ These configuration files need to be included into the main c-icap server config
 ```
 Include virus_scan.conf
 ```
+
+### Testing the Installation
+
+On the host server run the ICAP Server with the following command
+```
+/usr/local/c-icap/bin/c-icap -N -D -d 10
+```
+
+From a separate command prompt, run the client utility sending a file through the ICAP Server.
+```
+/usr/local/c-icap/bin/c-icap-client -f <full path to source file>  -o <full path to output file>
+```
+
