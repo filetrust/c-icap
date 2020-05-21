@@ -1,6 +1,7 @@
 #include "c-icap.h"
 #include "service.h"
 #include "request.h"
+#include "debug.h"
 
 int gw_init_service(ci_service_xdata_t *srv_xdata, struct ci_server_conf *server_conf);
 int gw_post_init_service(ci_service_xdata_t *srv_xdata, struct ci_server_conf *server_conf);
@@ -42,12 +43,13 @@ int gw_post_init_service(ci_service_xdata_t *srv_xdata, struct ci_server_conf *s
 
 void gw_close_service()
 {
-        ci_debug_printf(5, "gw_close_service......\n");
+    ci_debug_printf(5, "gw_close_service......\n");
 }
 
 void *gw_init_request_data(struct ci_request *req)
 {
-        ci_debug_printf(5, "gw_init_request_data......\n");
+    ci_debug_printf(5, "gw_init_request_data......\n");
+	return req;
 }
 
 void gw_release_request_data(void *srv_data)
