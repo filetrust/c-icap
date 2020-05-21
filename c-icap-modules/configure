@@ -14036,7 +14036,7 @@ else
 fi
 
 
-ac_config_files="$ac_config_files Makefile services/Makefile services/virus_scan/Makefile services/url_check/Makefile services/content_filtering/Makefile modules/Makefile"
+ac_config_files="$ac_config_files Makefile services/Makefile services/virus_scan/Makefile services/url_check/Makefile services/content_filtering/Makefile services/gw_test/Makefile modules/Makefile"
 
 cat >confcache <<\_ACEOF
 # This file is a shell script that caches the results of configure
@@ -15080,6 +15080,7 @@ do
     "services/virus_scan/Makefile") CONFIG_FILES="$CONFIG_FILES services/virus_scan/Makefile" ;;
     "services/url_check/Makefile") CONFIG_FILES="$CONFIG_FILES services/url_check/Makefile" ;;
     "services/content_filtering/Makefile") CONFIG_FILES="$CONFIG_FILES services/content_filtering/Makefile" ;;
+    "services/gw_test/Makefile") CONFIG_FILES="$CONFIG_FILES services/gw_test/Makefile" ;;
     "modules/Makefile") CONFIG_FILES="$CONFIG_FILES modules/Makefile" ;;
 
   *) as_fn_error $? "invalid argument: \`$ac_config_target'" "$LINENO" 5;;
