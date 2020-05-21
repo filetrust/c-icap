@@ -18,7 +18,6 @@ install-sh
 libtool
 ltmain.sh
 Makefile
-Makefile.in
 Makefile.Linux-Static
 missing
 mkinstalldirs
