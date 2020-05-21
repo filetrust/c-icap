@@ -14,6 +14,15 @@ git submodule update
 ## Installing
 
 To install, the repo needs to be cloned on to the host server, running Linux.
+Running the follow commands will ensure the necessary packages are installed.
+```
+apt install gcc
+apt install make
+apt install make-guile
+apt install automake
+apt install automake1.11
+apt install doxygen
+```
 
 ### Server
 
