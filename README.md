@@ -10,7 +10,6 @@ The Rebuild SDK is addded as a submodule. When cloning this project the submodul
 git submodule init
 git submodule update
 ```
-
 ## Installing
 
 To install, the repo needs to be cloned on to the host server, running Linux.
@@ -23,6 +22,32 @@ apt install automake
 apt install automake1.11
 apt install doxygen
 ```
+
+### Glasswall SDK
+To install the Glasswall SDK into the Linux run the top level Makefile
+```
+make gwinstall
+```
+This copies the Glasswall SDK into the ```/user/lib``` folder.
+Once in place the library needs to be registered to make it accessible.
+Create a glasswall.classic.conf file, with the installed location
+```
+echo "/usr/lib" > glasswall.classic.conf
+```
+Update the etc directory
+```
+sudo cp glasswall.classic.conf /etc/lib.so.conf.d
+```
+Run ldconfig to configure dynamic linker run-time bindings
+```
+sudo ldconfig -p
+```
+
+Remove the .conf file
+```
+rm glasswall.classic.conf
+```
+
 
 ### Server
 
