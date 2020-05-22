@@ -6,7 +6,7 @@ cicapmodule_LTLIBRARIES=gw_test.la
 
 CONFS = gw_test.conf
 
-gw_test_la_LIBADD = @MODULES_LIBADD@ 
+gw_test_la_LIBADD = @MODULES_LIBADD@ -lglasswall.classic
 gw_test_la_LDFLAGS = -module -avoid-version
 gw_test_la_CFLAGS =
 gw_test_la_SOURCES = gw_test.c
@@ -21,4 +21,4 @@ install-data-local:
 	$(mkinstalldirs) $(DESTDIR)$(cicapdatadir)/templates/gw_test/en/
 	for f in $(TMPLS); do $(INSTALL) $(srcdir)/$$f $(DESTDIR)$(cicapdatadir)/templates/gw_test/en/; done
 
-EXTRA_DIST = gw_test.h gw_test.conf $(TMPLS)
+EXTRA_DIST = gw_test.h gw_test.conf gwfile.h gwfilestatus.h filetypes.h $(TMPLS)
