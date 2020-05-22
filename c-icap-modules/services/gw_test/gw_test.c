@@ -1,7 +1,13 @@
+#include <wchar.h>
 #include "c-icap.h"
 #include "service.h"
 #include "request.h"
+#include "gwfile.h"
 #include "debug.h"
+#include <locale.h>
+#include <stdlib.h>
+
+#define BUFFER_SIZE 50
 
 int gw_init_service(ci_service_xdata_t *srv_xdata, struct ci_server_conf *server_conf);
 int gw_post_init_service(ci_service_xdata_t *srv_xdata, struct ci_server_conf *server_conf);
@@ -31,7 +37,15 @@ CI_DECLARE_MOD_DATA ci_service_module_t service = {
 
 int gw_init_service(ci_service_xdata_t *srv_xdata, struct ci_server_conf *server_conf)
 {
+	setlocale(LC_ALL, "");
     ci_debug_printf(5, "gw_init_service......\n");
+	// Load the Glasswall library and get the version
+	wchar_t* wsdkVersion = GWFileVersion();
+	char* sdkVersion = (char *)malloc(BUFFER_SIZE);
+	wcstombs(sdkVersion, wsdkVersion, 20);
+	
+	ci_debug_printf(4, "Glasswall SDK Version = %s\n", sdkVersion); 
+	
     return CI_OK;
 }
 
