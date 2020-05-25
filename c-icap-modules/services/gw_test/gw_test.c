@@ -35,6 +35,7 @@ static ci_off_t MAX_OBJECT_SIZE = 5*1024*1024;
 static ci_off_t START_SEND_AFTER = 0;
 static int PASSONERROR = 0;
 #define GW_VERSION_SIZE 15
+#define AV_BT_FILE_PATH_SIZE 150
 
 static struct ci_magics_db *magic_db = NULL;
 static struct av_file_types SCAN_FILE_TYPES = {NULL, NULL};
@@ -467,6 +468,7 @@ static int handle_deflated(gw_test_req_data_t *data)
     return 0;
 }
 
+wchar_t* SanitiseAll();
 static int rebuild_scan(ci_request_t *req, gw_test_req_data_t *data)
 {
 	if (handle_deflated(data)) {
@@ -475,17 +477,27 @@ static int rebuild_scan(ci_request_t *req, gw_test_req_data_t *data)
 		if (data->body.decoded){
 			//scan_status = data->engine[i]->scan_simple_file(data->body.decoded, &data->virus_info);
 			ci_debug_printf(4, "rebuild_scan: decoded\n")
+			return CI_OK;
 		}
-		else if (data->body.type == AV_BT_FILE){
-			//scan_status = data->engine[i]->scan_simple_file(data->body.store.file, &data->virus_info);
-			ci_debug_printf(4, "rebuild_scan: AV_BT_FILE\n")
+		int filetypeIndex;
+		const wchar_t * filetype;
+		char filetypeString [5];	
+		
+		if (data->body.type == AV_BT_FILE){
+			ci_debug_printf(4, "rebuild_scan: AV_BT_FILE\n");
+			wchar_t filepath [AV_BT_FILE_PATH_SIZE];
+			mbstowcs(filepath, data->body.store.file->filename, AV_BT_FILE_PATH_SIZE);
+			filetypeIndex = GWDetermineFileTypeFromFile(filepath);
+			filetypeIndex = cli_ft(filetypeIndex);
+			filetype = gwFileTypeResults[filetypeIndex];
+			wcstombs(filetypeString, filetype, 5);
+			ci_debug_printf(4, "rebuild_scan: filetype = %s\n", filetypeString);	
+			
+			
 		}
 		else{ // if (data->body.type == AV_BT_MEM)
-			//scan_status = data->engine[i]->scan_membuf(data->body.store.mem, &data->virus_info);
-			int filetypeIndex;
-			const wchar_t * filetype;
-			char filetypeString [5];
-			ci_debug_printf(4, "rebuild_scan: AV_BT_MEM\n");	
+			ci_debug_printf(4, "rebuild_scan: AV_BT_MEM\n");
+		
 			filetypeIndex = GWDetermineFileTypeFromFileInMem(data->body.store.mem->buf, data->body.store.mem->bufsize);	
 			filetypeIndex = cli_ft(filetypeIndex);
 			filetype = gwFileTypeResults[filetypeIndex];
@@ -495,13 +507,7 @@ static int rebuild_scan(ci_request_t *req, gw_test_req_data_t *data)
 			wchar_t* cmPolicy;
 			size_t cmPolicySize;
 			int returnStatus;
-			returnStatus = GWFileConfigGet(&cmPolicy, &cmPolicySize);
-			if (returnStatus != eGwFileStatus_Success)
-			{
-				ci_debug_printf(4, "rebuild_scan: GWFileConfigGet error= %d\n", returnStatus);		
-				return CI_ERROR;
-			}
-			returnStatus = GWFileConfigXML(cmPolicy);
+			returnStatus = GWFileConfigXML(SanitiseAll());
 			if (returnStatus != eGwFileStatus_Success)
 			{
 				ci_debug_printf(4, "rebuild_scan: GWFileConfigXML error= %d\n", returnStatus);		
@@ -518,6 +524,12 @@ static int rebuild_scan(ci_request_t *req, gw_test_req_data_t *data)
 			}
 			
 			ci_debug_printf(4, "rebuild_scan: GWMemoryToMemoryProtect rebuilt size= %lu\n", outputLength);	
+			// Replace the original body
+			//  this should be done using library functionss working on gw_test_req_data_t, rather than here directly. 
+			ci_membuf_free(data->body.store.mem);
+			gw_body_data_new(&data->body, data->body.type, outputLength);
+			gw_body_data_write(&data->body, outputFileBuffer, outputLength, 1);
+			
 		}
 
 		ci_debug_printf(4, "rebuild_scanned\n");				
@@ -593,8 +605,6 @@ static int init_body_data(ci_request_t *req)
 
     return CI_OK;
 }
-
-
 
 void generate_error_page(gw_test_req_data_t *data, ci_request_t *req)
 {
@@ -764,4 +774,20 @@ int fmt_virus_scan_http_url(ci_request_t *req, char *buf, int len, const char *p
     return snprintf(buf, len, "%s", data->url_log);
 }
 
+wchar_t* SanitiseAll()
+{
+	return L"<?xml version=\"1.0\" encoding=\"utf-8\" ?> <config>"
+	L"<pdfConfig>"
+	L"<javascript>sanitise</javascript>" 
+	L"<acroform>sanitise</acroform>"
+	L"<internal_hyperlinks>sanitise</internal_hyperlinks>"
+	L"<external_hyperlinks>sanitise</external_hyperlinks>" 
+	L"<embedded_files>sanitise</embedded_files>" 
+	L"<metadata>sanitise</metadata>" 
+	L"<actions_all>sanitise</actions_all>"
+	L"</pdfConfig>"
+	L"<wordConfig>"
+	L"<metadata>sanitise</metadata>" 
+	L"</wordConfig> </config>";
+}
 

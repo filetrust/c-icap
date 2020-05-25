@@ -31,9 +31,13 @@ extern "C" {
 
 	GLASSWALL_DLL_API int GWMemoryToMemoryProtect(void *inputBuffer, size_t inputBufferLength, const wchar_t* wcType, void **outputFileBuffer, size_t *outputLength);
 	GLASSWALL_DLL_API int GWMemoryToMemoryAnalysisAudit(void *inputBuffer, size_t inputBufferLength, wchar_t* wcType, void **analysisFileBuffer, size_t *analysisFileBufferLength);
+	
+	GLASSWALL_DLL_API int GWFileProtect(const wchar_t * inputFilePathName, const wchar_t* wcType, void **outputFileBuffer, size_t *outputLength);
+	GLASSWALL_DLL_API int GWFileAnalysisAudit(wchar_t * inputFilePathName, wchar_t* wcType, void **analysisFileBuffer, size_t *analysisFileBufferLength);
 
     GLASSWALL_DLL_API int GWFileProcessStatus(unsigned int *glasswallProcessStatus);
 		
+	GLASSWALL_DLL_API int GWDetermineFileTypeFromFile(const wchar_t* inputFilePathName);
 	GLASSWALL_DLL_API int GWDetermineFileTypeFromFileInMem(void* inputBuffer, size_t inputBufferSize);
 
     GLASSWALL_DLL_API int GWFileDone(void);
