@@ -14,6 +14,8 @@
 #include "c_icap/txtTemplate.h"
 #include "c_icap/stats.h"
 #include "gwfile.h"
+#include "gwfiletypes.h"
+#include "filetypes.h"
 #include "../../common.h"
 #include "md5.h"
 #include <errno.h>
@@ -479,10 +481,15 @@ static int rebuild_scan(ci_request_t *req, gw_test_req_data_t *data)
 		}
 		else{ // if (data->body.type == AV_BT_MEM)
 			//scan_status = data->engine[i]->scan_membuf(data->body.store.mem, &data->virus_info);
-			int filetype;
+			int filetypeIndex;
+			const wchar_t * filetype;
+			char filetypeString [5];
 			ci_debug_printf(4, "rebuild_scan: AV_BT_MEM\n");	
-			filetype = GWDetermineFileTypeFromFileInMem(data->body.store.mem->buf, data->body.store.mem->bufsize);		
-			ci_debug_printf(4, "rebuild_scan: filetype = %d\n", filetype);			
+			filetypeIndex = GWDetermineFileTypeFromFileInMem(data->body.store.mem->buf, data->body.store.mem->bufsize);	
+			filetypeIndex = cli_ft(filetypeIndex);
+			filetype = gwFileTypeResults[filetypeIndex];
+			wcstombs(filetypeString, filetype, 5);
+			ci_debug_printf(4, "rebuild_scan: filetype = %s\n", filetypeString);			
 		}
 
 		ci_debug_printf(4, "rebuild_scanned\n");				
