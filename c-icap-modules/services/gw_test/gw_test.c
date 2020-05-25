@@ -14,6 +14,7 @@
 #include "c_icap/txtTemplate.h"
 #include "c_icap/stats.h"
 #include "gwfile.h"
+#include "gwfilestatus.h"
 #include "gwfiletypes.h"
 #include "filetypes.h"
 #include "../../common.h"
@@ -489,7 +490,34 @@ static int rebuild_scan(ci_request_t *req, gw_test_req_data_t *data)
 			filetypeIndex = cli_ft(filetypeIndex);
 			filetype = gwFileTypeResults[filetypeIndex];
 			wcstombs(filetypeString, filetype, 5);
-			ci_debug_printf(4, "rebuild_scan: filetype = %s\n", filetypeString);			
+			ci_debug_printf(4, "rebuild_scan: filetype = %s\n", filetypeString);		
+
+			wchar_t* cmPolicy;
+			size_t cmPolicySize;
+			int returnStatus;
+			returnStatus = GWFileConfigGet(&cmPolicy, &cmPolicySize);
+			if (returnStatus != eGwFileStatus_Success)
+			{
+				ci_debug_printf(4, "rebuild_scan: GWFileConfigGet error= %d\n", returnStatus);		
+				return CI_ERROR;
+			}
+			returnStatus = GWFileConfigXML(cmPolicy);
+			if (returnStatus != eGwFileStatus_Success)
+			{
+				ci_debug_printf(4, "rebuild_scan: GWFileConfigXML error= %d\n", returnStatus);		
+				return CI_ERROR;
+			}
+			void *outputFileBuffer;
+			size_t outputLength;
+			returnStatus = GWMemoryToMemoryProtect(data->body.store.mem->buf, data->body.store.mem->bufsize, filetype,
+													&outputFileBuffer, &outputLength);
+			if (returnStatus != eGwFileStatus_Success)
+			{
+				ci_debug_printf(4, "rebuild_scan: GWMemoryToMemoryProtect error= %d\n", returnStatus);		
+				return CI_ERROR;
+			}
+			
+			ci_debug_printf(4, "rebuild_scan: GWMemoryToMemoryProtect rebuilt size= %lu\n", outputLength);	
 		}
 
 		ci_debug_printf(4, "rebuild_scanned\n");				
