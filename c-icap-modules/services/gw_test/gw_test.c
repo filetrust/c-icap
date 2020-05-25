@@ -113,17 +113,30 @@ void gw_release_request_data(void *srv_data)
 int gw_check_preview_handler(char *preview_data, int preview_data_len, struct ci_request *req)
 {
     ci_debug_printf(5, "gw_check_preview_handler......\n");
+	
+	ci_off_t content_len;
+	
 	struct gw_test_req_data *gw_test_data = ci_service_data(req);
 	
-	if (!gw_test_data || !ci_req_hasbody(req)){
+	content_len = ci_http_content_length(req);
+    ci_debug_printf(9, "We expect to read :%" PRINTF_OFF_T " body data\n",
+                    (CAST_OFF_T) content_len);
+	
+	if (!ci_req_hasbody(req)){
 		ci_debug_printf(6, "No body data, allow 204\n");
 		return CI_MOD_ALLOW204;
     }
+	
+	/*Unlock the request body data so the c-icap server can send data before
+      all body data has received */
+	ci_req_unlock_data(req);
 	
 	/*If there are not preview data tell to the client to continue sending data
       (http object modification required). */
     if (!preview_data_len)
         return CI_MOD_CONTINUE;
+	
+	ci_debug_printf(8, "Gw_Test service will process the request\n");
 	
 	 /*if we have preview data and we want to proceed with the request processing
           we should store the preview data. */
