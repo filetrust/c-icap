@@ -132,7 +132,7 @@ am__installdirs = "$(DESTDIR)$(cicapmoduledir)"
 LTLIBRARIES = $(cicapmodule_LTLIBRARIES)
 gw_test_la_DEPENDENCIES =
 am_gw_test_la_OBJECTS = gw_test_la-gw_test.lo gw_test_la-gw_body.lo \
-	gw_test_la-gwfiletypes.lo
+	gw_test_la-gwfiletypes.lo gw_test_la-glasswall_sdk.lo
 gw_test_la_OBJECTS = $(am_gw_test_la_OBJECTS)
 AM_V_lt = $(am__v_lt_@AM_V@)
 am__v_lt_ = $(am__v_lt_@AM_DEFAULT_V@)
@@ -341,9 +341,9 @@ CONFS = gw_test.conf
 gw_test_la_LIBADD = @MODULES_LIBADD@ -lglasswall.classic
 gw_test_la_LDFLAGS = -module -avoid-version
 gw_test_la_CFLAGS = 
-gw_test_la_SOURCES = gw_test.c gw_body.c gwfiletypes.c
+gw_test_la_SOURCES = gw_test.c gw_body.c gwfiletypes.c glasswall_sdk.c
 TMPLS = templates/en/VIRUS_FOUND
-EXTRA_DIST = gw_test.h gw_test.conf gwfile.h gw_body.h gwfilestatus.h filetypes.h gwfiletypes.h $(TMPLS)
+EXTRA_DIST = gw_test.h gw_test.conf gwfile.h gw_body.h gwfilestatus.h filetypes.h gwfiletypes.h glasswall_sdk.h $(TMPLS)
 all: all-am
 
 .SUFFIXES:
@@ -422,6 +422,7 @@ mostlyclean-compile:
 distclean-compile:
 	-rm -f *.tab.c
 
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/gw_test_la-glasswall_sdk.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/gw_test_la-gw_body.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/gw_test_la-gw_test.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/gw_test_la-gwfiletypes.Plo@am__quote@
@@ -470,6 +471,13 @@ gw_test_la-gwfiletypes.lo: gwfiletypes.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='gwfiletypes.c' object='gw_test_la-gwfiletypes.lo' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(gw_test_la_CFLAGS) $(CFLAGS) -c -o gw_test_la-gwfiletypes.lo `test -f 'gwfiletypes.c' || echo '$(srcdir)/'`gwfiletypes.c
+
+gw_test_la-glasswall_sdk.lo: glasswall_sdk.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(gw_test_la_CFLAGS) $(CFLAGS) -MT gw_test_la-glasswall_sdk.lo -MD -MP -MF $(DEPDIR)/gw_test_la-glasswall_sdk.Tpo -c -o gw_test_la-glasswall_sdk.lo `test -f 'glasswall_sdk.c' || echo '$(srcdir)/'`glasswall_sdk.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/gw_test_la-glasswall_sdk.Tpo $(DEPDIR)/gw_test_la-glasswall_sdk.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='glasswall_sdk.c' object='gw_test_la-glasswall_sdk.lo' libtool=yes @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(gw_test_la_CFLAGS) $(CFLAGS) -c -o gw_test_la-glasswall_sdk.lo `test -f 'glasswall_sdk.c' || echo '$(srcdir)/'`glasswall_sdk.c
 
 mostlyclean-libtool:
 	-rm -f *.lo

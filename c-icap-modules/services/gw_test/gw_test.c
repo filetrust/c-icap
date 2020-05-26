@@ -13,7 +13,7 @@
 #include "c_icap/txt_format.h"
 #include "c_icap/txtTemplate.h"
 #include "c_icap/stats.h"
-#include "gwfile.h"
+#include "glasswall_sdk.h"
 #include "gwfilestatus.h"
 #include "gwfiletypes.h"
 #include "filetypes.h"
@@ -26,6 +26,7 @@
 void generate_error_page(gw_test_req_data_t *data, ci_request_t *req);
 char *virus_scan_compute_name(ci_request_t *req);
 static void rebuild_content_length(ci_request_t *req, gw_body_data_t *body);
+void init_gw_sdk();
 /***********************************************************************************/
 /* Module definitions                                                              */
 
@@ -40,7 +41,7 @@ static int PASSONERROR = 0;
 static struct ci_magics_db *magic_db = NULL;
 static struct av_file_types SCAN_FILE_TYPES = {NULL, NULL};
 
-char SDK_VERSION[GW_VERSION_SIZE];  
+char* SDK_VERSION;  
 
 char *VIR_SAVE_DIR = NULL;
 char *VIR_HTTP_SERVER = NULL;
@@ -60,6 +61,8 @@ struct ci_fmt_entry virus_scan_format_table [] = {
     {"%VU", "The HTTP url", fmt_virus_scan_http_url},
     { NULL, NULL, NULL}
 };
+
+static glasswall_sdk_t* gw_sdk;
 
 
 /*virus_scan service extra data ... */
@@ -130,11 +133,12 @@ CI_DECLARE_MOD_DATA ci_service_module_t service = {
 int gw_test_init_service(ci_service_xdata_t *srv_xdata,
                            struct ci_server_conf *server_conf)
 {
+    init_gw_sdk();
     setlocale(LC_ALL, "");
     ci_debug_printf(5, "gw_test_init_service......\n");
+        
     // Load the Glasswall library and get the version
-    wchar_t* wsdkVersion = GWFileVersion();
-    wcstombs(SDK_VERSION, wsdkVersion, GW_VERSION_SIZE);
+    SDK_VERSION = gw_sdk_file_version(gw_sdk);
         
     ci_debug_printf(4, "Glasswall SDK Version = %s\n", SDK_VERSION); 
     
@@ -180,6 +184,8 @@ void gw_test_close_service()
     ci_debug_printf(5, "gw_test_close_service......\n");
     av_file_types_destroy(&SCAN_FILE_TYPES);
     ci_object_pool_unregister(AVREQDATA_POOL);
+    
+    gw_sdk_file_done(gw_sdk);
 }
 
 void *gw_test_init_request_data(ci_request_t *req)
@@ -228,11 +234,10 @@ void *gw_test_init_request_data(ci_request_t *req)
      return NULL;
 }
 
-
 void gw_test_release_request_data(void *data)
 {
     if (data) {
-        ci_debug_printf(5, "Releasing virus_scan data.....\n");
+        ci_debug_printf(5, "Releasing gw_test data.....\n");
 
         gw_body_data_destroy(&(((gw_test_req_data_t *) data)->body));
 
@@ -242,7 +247,6 @@ void gw_test_release_request_data(void *data)
         ci_object_pool_free(data);
      }
 }
-
 
 int gw_test_check_preview_handler(char *preview_data, int preview_data_len,
                                     ci_request_t *req)
@@ -468,7 +472,7 @@ static int handle_deflated(gw_test_req_data_t *data)
     return 0;
 }
 
-wchar_t* SanitiseAll();
+char* SanitiseAll();
 static int rebuild_scan(ci_request_t *req, gw_test_req_data_t *data)
 {
     if (handle_deflated(data)) {
@@ -482,7 +486,8 @@ static int rebuild_scan(ci_request_t *req, gw_test_req_data_t *data)
         
         // Initialise the library with the content management policyl
         int returnStatus;
-        returnStatus = GWFileConfigXML(SanitiseAll());
+		
+        returnStatus = gw_sdk_file_config_xml(gw_sdk, SanitiseAll());
         if (returnStatus != eGwFileStatus_Success)
         {
             ci_debug_printf(4, "rebuild_scan: GWFileConfigXML error= %d\n", returnStatus);      
@@ -490,22 +495,20 @@ static int rebuild_scan(ci_request_t *req, gw_test_req_data_t *data)
         }       
         
         int filetypeIndex;
-        const wchar_t * filetype;
+        const char* filetype;
         char filetypeString [5];    
         void *outputFileBuffer;
         size_t outputLength;
                 
         if (data->body.type == GW_BT_FILE){
             ci_debug_printf(4, "rebuild_scan: GW_BT_FILE\n");
-            wchar_t filepath [GW_BT_FILE_PATH_SIZE];
-            mbstowcs(filepath, data->body.store.file->filename, GW_BT_FILE_PATH_SIZE);
-            filetypeIndex = GWDetermineFileTypeFromFile(filepath);
+
+            filetypeIndex = gw_sdk_determine_file_type_from_file(gw_sdk, data->body.store.file->filename);
             filetypeIndex = cli_ft(filetypeIndex);
             filetype = gwFileTypeResults[filetypeIndex];
-            wcstombs(filetypeString, filetype, 5);
-            ci_debug_printf(4, "rebuild_scan: filetype = %s\n", filetypeString);    
+            ci_debug_printf(4, "rebuild_scan: filetype = %s\n", filetype);    
             
-            returnStatus = GWFileProtect(filepath, filetype,
+            returnStatus = gw_sdk_file_protect(gw_sdk, data->body.store.file->filename, filetype,
                                             &outputFileBuffer, &outputLength);
             if (returnStatus != eGwFileStatus_Success)
             {
@@ -519,13 +522,12 @@ static int rebuild_scan(ci_request_t *req, gw_test_req_data_t *data)
         else{ // if (data->body.type == GW_BT_MEM)
             ci_debug_printf(4, "rebuild_scan: GW_BT_MEM\n");
         
-            filetypeIndex = GWDetermineFileTypeFromFileInMem(data->body.store.mem->buf, data->body.store.mem->bufsize); 
+            filetypeIndex = gw_sdk_determine_file_type_from_memory(gw_sdk, data->body.store.mem->buf, data->body.store.mem->bufsize); 
             filetypeIndex = cli_ft(filetypeIndex);
             filetype = gwFileTypeResults[filetypeIndex];
-            wcstombs(filetypeString, filetype, 5);
             ci_debug_printf(4, "rebuild_scan: filetype = %s\n", filetypeString);        
 
-            returnStatus = GWMemoryToMemoryProtect(data->body.store.mem->buf, data->body.store.mem->bufsize, filetype,
+            returnStatus = gw_sdk_memory_to_memory_protect(gw_sdk, data->body.store.mem->buf, data->body.store.mem->bufsize, filetype,
                                                     &outputFileBuffer, &outputLength);
             if (returnStatus != eGwFileStatus_Success)
             {
@@ -780,20 +782,26 @@ int fmt_virus_scan_http_url(ci_request_t *req, char *buf, int len, const char *p
     return snprintf(buf, len, "%s", data->url_log);
 }
 
-wchar_t* SanitiseAll()
+void init_gw_sdk()
 {
-    return L"<?xml version=\"1.0\" encoding=\"utf-8\" ?> <config>"
-    L"<pdfConfig>"
-    L"<javascript>sanitise</javascript>" 
-    L"<acroform>sanitise</acroform>"
-    L"<internal_hyperlinks>sanitise</internal_hyperlinks>"
-    L"<external_hyperlinks>sanitise</external_hyperlinks>" 
-    L"<embedded_files>sanitise</embedded_files>" 
-    L"<metadata>sanitise</metadata>" 
-    L"<actions_all>sanitise</actions_all>"
-    L"</pdfConfig>"
-    L"<wordConfig>"
-    L"<metadata>sanitise</metadata>" 
-    L"</wordConfig> </config>";
+	gw_sdk = malloc(sizeof(glasswall_sdk_t));
+	glasswall_sdk_init(gw_sdk);	
+}
+
+char* SanitiseAll()
+{
+    return "<?xml version=\"1.0\" encoding=\"utf-8\" ?> <config>"
+    "<pdfConfig>"
+    "<javascript>sanitise</javascript>" 
+    "<acroform>sanitise</acroform>"
+    "<internal_hyperlinks>sanitise</internal_hyperlinks>"
+    "<external_hyperlinks>sanitise</external_hyperlinks>" 
+    "<embedded_files>sanitise</embedded_files>" 
+    "<metadata>sanitise</metadata>" 
+    "<actions_all>sanitise</actions_all>"
+    "</pdfConfig>"
+    "<wordConfig>"
+    "<metadata>sanitise</metadata>" 
+    "</wordConfig> </config>";
 }
 
