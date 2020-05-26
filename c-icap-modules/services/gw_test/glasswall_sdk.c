@@ -30,11 +30,14 @@ void glasswall_sdk_destroy(glasswall_sdk_t* sdk)
 	free(sdk);
 }
 
-int gw_sdk_file_config_xml(glasswall_sdk_t* sdk, char * xmlstring){
+int gw_sdk_file_config_xml(glasswall_sdk_t* sdk, char* xmlstring){
+	int status;
 	int len = strlen(xmlstring);
-	wchar_t* wide_xmlstring = NULL;
+	wchar_t* wide_xmlstring = malloc(len * (sizeof(wchar_t)+1));
 	mbstowcs(wide_xmlstring, xmlstring, len);
-	return sdk->gw_file_config_xml(wide_xmlstring);
+	status = sdk->gw_file_config_xml(wide_xmlstring);
+	free(wide_xmlstring);
+	return status;
 }
 
 int gw_sdk_memory_to_memory_protect(glasswall_sdk_t* sdk, void *inputBuffer, size_t inputBufferLength, const char* type,void **outputFileBuffer, size_t *outputLength){

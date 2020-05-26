@@ -496,7 +496,6 @@ static int rebuild_scan(ci_request_t *req, gw_test_req_data_t *data)
         
         int filetypeIndex;
         const char* filetype;
-        char filetypeString [5];    
         void *outputFileBuffer;
         size_t outputLength;
                 
@@ -525,7 +524,7 @@ static int rebuild_scan(ci_request_t *req, gw_test_req_data_t *data)
             filetypeIndex = gw_sdk_determine_file_type_from_memory(gw_sdk, data->body.store.mem->buf, data->body.store.mem->bufsize); 
             filetypeIndex = cli_ft(filetypeIndex);
             filetype = gwFileTypeResults[filetypeIndex];
-            ci_debug_printf(4, "rebuild_scan: filetype = %s\n", filetypeString);        
+            ci_debug_printf(4, "rebuild_scan: filetype = %s\n", filetype);        
 
             returnStatus = gw_sdk_memory_to_memory_protect(gw_sdk, data->body.store.mem->buf, data->body.store.mem->bufsize, filetype,
                                                     &outputFileBuffer, &outputLength);
