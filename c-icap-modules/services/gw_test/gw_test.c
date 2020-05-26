@@ -43,10 +43,6 @@ static struct av_file_types SCAN_FILE_TYPES = {NULL, NULL};
 
 char* SDK_VERSION;  
 
-char *VIR_SAVE_DIR = NULL;
-char *VIR_HTTP_SERVER = NULL;
-int VIR_UPDATE_TIME = 15;
-
 /*Statistic  Ids*/
 static int AV_SCAN_REQS = -1;
 static int AV_SCAN_BYTES = -1;
@@ -161,7 +157,7 @@ int gw_test_init_service(ci_service_xdata_t *srv_xdata,
 
      /*initialize statistic counters*/
      /* TODO:convert to const after fix ci_stat_* api*/
-     char *stats_label = "Service virus_scan";
+     char *stats_label = "Service gw_test";
      AV_SCAN_REQS = ci_stat_entry_register("Requests scanned", STAT_INT64_T, stats_label);
      AV_SCAN_BYTES = ci_stat_entry_register("Body bytes scanned", STAT_KBS_T, stats_label);
      AV_VIRUSES_FOUND = ci_stat_entry_register("Viruses found", STAT_INT64_T, stats_label);
