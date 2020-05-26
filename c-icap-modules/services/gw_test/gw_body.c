@@ -3,7 +3,7 @@
 #include "../../common.h"
 #include <assert.h>
 
-void gw_body_data_new(struct gw_body_data *bd, enum av_body_type type,  int size)
+void gw_body_data_new(gw_body_data_t *bd, enum av_body_type type,  int size)
 {
     if (type == AV_BT_FILE) {
         bd->store.file = ci_simple_file_new(size);
@@ -21,7 +21,7 @@ void gw_body_data_new(struct gw_body_data *bd, enum av_body_type type,  int size
     bd->decoded = NULL;
 }
 
-void gw_body_data_named(struct gw_body_data *bd, const char *dir, const char *name)
+void gw_body_data_named(gw_body_data_t *bd, const char *dir, const char *name)
 {
     bd->store.file = ci_simple_file_named_new((char *)dir, (char *)name, 0);
     if (bd->store.file)
@@ -32,7 +32,7 @@ void gw_body_data_named(struct gw_body_data *bd, const char *dir, const char *na
     bd->buf_exceed = 0;
 }
 
-void gw_body_data_destroy(struct gw_body_data *body)
+void gw_body_data_destroy(gw_body_data_t *body)
 {
     if (body->type == AV_BT_NONE)
         return; /*Nothing to do*/
@@ -52,7 +52,7 @@ void gw_body_data_destroy(struct gw_body_data *body)
     }
 }
 
-void gw_body_data_release(struct gw_body_data *body)
+void gw_body_data_release(gw_body_data_t *body)
 {
     /*This is make sense only for ci_simple_file_t objects.
       Means that the file will be closed but not removed from disk
@@ -68,7 +68,7 @@ void gw_body_data_release(struct gw_body_data *body)
     }
 }
 
-int gw_body_data_write(struct gw_body_data *body, char *buf, int len, int iseof)
+int gw_body_data_write(gw_body_data_t *body, char *buf, int len, int iseof)
 {
     int memsize;
     if (body->type == AV_BT_FILE)
@@ -86,7 +86,7 @@ int gw_body_data_write(struct gw_body_data *body, char *buf, int len, int iseof)
     return 0;
 }
 
-int gw_body_data_read(struct gw_body_data *body, char *buf, int len)
+int gw_body_data_read(gw_body_data_t *body, char *buf, int len)
 {
     if (body->type == AV_BT_FILE)
         return ci_simple_file_read(body->store.file, buf, len);

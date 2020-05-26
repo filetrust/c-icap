@@ -25,7 +25,7 @@
 
 void generate_error_page(gw_test_req_data_t *data, ci_request_t *req);
 char *virus_scan_compute_name(ci_request_t *req);
-static void rebuild_content_length(ci_request_t *req, struct gw_body_data *body);
+static void rebuild_content_length(ci_request_t *req, gw_body_data_t *body);
 /***********************************************************************************/
 /* Module definitions                                                              */
 
@@ -201,7 +201,7 @@ void *gw_test_init_request_data(ci_request_t *req)
                                "Error allocation memory for service data!!!!!!!\n");
                return NULL;
           }
-          memset(&data->body,0, sizeof(struct gw_body_data));
+          memset(&data->body,0, sizeof(gw_body_data_t));
           data->error_page = NULL;
           data->url_log[0] = '\0';
           data->must_scanned = SCAN;
@@ -709,7 +709,7 @@ void virus_scan_parse_args(gw_test_req_data_t *data, char *args)
      }
 }
 
-void rebuild_content_length(ci_request_t *req, struct gw_body_data *bd)
+void rebuild_content_length(ci_request_t *req, gw_body_data_t *bd)
 {
     ci_off_t new_file_size = 0;
     char buf[256];
