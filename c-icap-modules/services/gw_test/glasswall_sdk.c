@@ -12,11 +12,8 @@ void glasswall_sdk_init(glasswall_sdk_t* sdk)
 {
     sdk->gw_file_config_xml = GWFileConfigXML;
     
-    sdk->gw_memory_to_memory_protect = GWMemoryToMemoryProtect;
-    sdk->gw_memory_to_memory_analysis = GWMemoryToMemoryAnalysisAudit;
-    
+    sdk->gw_memory_to_memory_protect = GWMemoryToMemoryProtect;   
     sdk->gw_file_protect = GWFileProtect;
-    sdk->gw_file_analysis = GWFileAnalysisAudit;
     
     sdk->gw_determine_file_type_from_file = GWDetermineFileTypeFromFile;
     sdk->gw_determine_file_type_from_memory = GWDetermineFileTypeFromFileInMem;
@@ -46,10 +43,6 @@ int gw_sdk_memory_to_memory_protect(glasswall_sdk_t* sdk, void *inputBuffer, siz
 	return sdk->gw_memory_to_memory_protect(inputBuffer, inputBufferLength, wcType, outputFileBuffer, outputLength);
 }
 
-int gw_sdk_memory_to_memory_analysis(glasswall_sdk_t* sdk, void *inputBuffer, size_t inputBufferLength, char* type, void **analysisFileBuffer, size_t *analysisFileBufferLength){
-	return 0;
-}
-
 int gw_sdk_file_protect(glasswall_sdk_t* sdk, const char * inputFilePathName, const char* type, void **outputFileBuffer, size_t *outputLength){
 	wchar_t wcPath[GW_BT_FILE_PATH_SIZE];
 	wchar_t wcType[FILETYPE_SIZE];
@@ -57,11 +50,6 @@ int gw_sdk_file_protect(glasswall_sdk_t* sdk, const char * inputFilePathName, co
 	mbstowcs(wcType, type, FILETYPE_SIZE);
 	return sdk->gw_file_protect(wcPath, wcType, outputFileBuffer, outputLength);
 }
-
-int gw_sdk_file_analysis(glasswall_sdk_t* sdk, char * inputFilePathName, char* type, void **analysisFileBuffer, size_t *analysisFileBufferLength){
-	return 0;
-}
-
     
 int gw_sdk_determine_file_type_from_file(glasswall_sdk_t* sdk, const char* inputFilePathName){
 	wchar_t filepath[GW_BT_FILE_PATH_SIZE];
