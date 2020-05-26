@@ -3,20 +3,20 @@
 #include "../../common.h"
 #include <assert.h>
 
-void gw_body_data_new(gw_body_data_t *bd, enum av_body_type type,  int size)
+void gw_body_data_new(gw_body_data_t *bd, enum gw_body_type type,  int size)
 {
-    if (type == AV_BT_FILE) {
+    if (type == GW_BT_FILE) {
         bd->store.file = ci_simple_file_new(size);
         if (bd->store.file)
             bd->type = type;
     }
-    else if (type == AV_BT_MEM) {
+    else if (type == GW_BT_MEM) {
         bd->store.mem = ci_membuf_new_sized(size);
         if (bd->store.mem)
             bd->type = type;
     }
     else
-        bd->type = AV_BT_NONE;
+        bd->type = GW_BT_NONE;
     bd->buf_exceed = 0;
     bd->decoded = NULL;
 }
@@ -25,26 +25,26 @@ void gw_body_data_named(gw_body_data_t *bd, const char *dir, const char *name)
 {
     bd->store.file = ci_simple_file_named_new((char *)dir, (char *)name, 0);
     if (bd->store.file)
-        bd->type = AV_BT_FILE;
+        bd->type = GW_BT_FILE;
     else
-        bd->type = AV_BT_NONE;
+        bd->type = GW_BT_NONE;
 
     bd->buf_exceed = 0;
 }
 
 void gw_body_data_destroy(gw_body_data_t *body)
 {
-    if (body->type == AV_BT_NONE)
+    if (body->type == GW_BT_NONE)
         return; /*Nothing to do*/
-    if (body->type == AV_BT_FILE) {
+    if (body->type == GW_BT_FILE) {
         ci_simple_file_destroy(body->store.file);
         body->store.file = NULL;
-        body->type = AV_BT_NONE;
+        body->type = GW_BT_NONE;
     }
-    else if (body->type == AV_BT_MEM) {
+    else if (body->type == GW_BT_MEM) {
         ci_membuf_free(body->store.mem);
         body->store.mem = NULL;
-        body->type = AV_BT_NONE;
+        body->type = GW_BT_NONE;
     }
     if (body->decoded) {
         ci_simple_file_destroy(body->decoded);
@@ -58,10 +58,10 @@ void gw_body_data_release(gw_body_data_t *body)
       Means that the file will be closed but not removed from disk
       It is used only in vir_mode.
      */
-    assert(body->type == AV_BT_FILE);
+    assert(body->type == GW_BT_FILE);
     ci_simple_file_release(body->store.file);
     body->store.file = NULL;
-    body->type = AV_BT_NONE;
+    body->type = GW_BT_NONE;
     if (body->decoded) {
         ci_simple_file_destroy(body->decoded);
         body->decoded = NULL;
@@ -71,9 +71,9 @@ void gw_body_data_release(gw_body_data_t *body)
 int gw_body_data_write(gw_body_data_t *body, char *buf, int len, int iseof)
 {
     int memsize;
-    if (body->type == AV_BT_FILE)
+    if (body->type == GW_BT_FILE)
         return ci_simple_file_write(body->store.file, buf, len, iseof);
-    else if (body->type == AV_BT_MEM) {
+    else if (body->type == GW_BT_MEM) {
         if (body->buf_exceed)
             return 0; /*or just consume everything?*/
         memsize = body->store.mem->bufsize - body->store.mem->endpos;
@@ -88,9 +88,9 @@ int gw_body_data_write(gw_body_data_t *body, char *buf, int len, int iseof)
 
 int gw_body_data_read(gw_body_data_t *body, char *buf, int len)
 {
-    if (body->type == AV_BT_FILE)
+    if (body->type == GW_BT_FILE)
         return ci_simple_file_read(body->store.file, buf, len);
-    else if (body->type == AV_BT_MEM)
+    else if (body->type == GW_BT_MEM)
         return ci_membuf_read(body->store.mem, buf, len);
     return 0;
 }

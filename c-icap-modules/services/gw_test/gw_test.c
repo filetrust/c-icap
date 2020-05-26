@@ -35,7 +35,7 @@ static ci_off_t MAX_OBJECT_SIZE = 5*1024*1024;
 static ci_off_t START_SEND_AFTER = 0;
 static int PASSONERROR = 0;
 #define GW_VERSION_SIZE 15
-#define AV_BT_FILE_PATH_SIZE 150
+#define GW_BT_FILE_PATH_SIZE 150
 
 static struct ci_magics_db *magic_db = NULL;
 static struct av_file_types SCAN_FILE_TYPES = {NULL, NULL};
@@ -297,7 +297,7 @@ int virus_scan_write_to_net(char *buf, int len, ci_request_t *req)
 
      /*if a virus found and no data sent, an inform page has already generated */
 
-    if(data->body.type != AV_BT_NONE)
+    if(data->body.type != GW_BT_NONE)
         bytes = gw_body_data_read(&data->body, buf, len);
     else
         bytes =0;
@@ -328,7 +328,7 @@ int virus_scan_read_from_net(char *buf, int len, int iseof, ci_request_t *req)
      }
      assert(data->must_scanned != NO_DECISION);
 
-     if (data->body.type == AV_BT_NONE) /*No body data? consume all content*/
+     if (data->body.type == GW_BT_NONE) /*No body data? consume all content*/
      return len;
 
      if (data->must_scanned == NO_SCAN){
@@ -387,7 +387,7 @@ int gw_test_end_of_data_handler(ci_request_t *req)
 {
     gw_test_req_data_t *data = ci_service_data(req);
     
-    if (!data || data->body.type == AV_BT_NONE)
+    if (!data || data->body.type == GW_BT_NONE)
         return CI_MOD_DONE;
         
     if (rebuild_scan(req, data) == CI_ERROR) {
@@ -424,12 +424,12 @@ static int handle_deflated(gw_test_req_data_t *data)
     if ((data->body.decoded = ci_simple_file_new(0))) {
         const char *zippedData = NULL;
         size_t zippedDataLen = 0;
-        if (data->body.type == AV_BT_FILE) {
+        if (data->body.type == GW_BT_FILE) {
             zippedData = ci_simple_file_to_const_string(data->body.store.file);
             zippedDataLen = data->body.store.file->endpos;
             /**/
         } else {
-            assert(data->body.type == AV_BT_MEM);
+            assert(data->body.type == GW_BT_MEM);
             zippedData = data->body.store.mem->buf;
             zippedDataLen = data->body.store.mem->endpos;
         }
@@ -495,10 +495,10 @@ static int rebuild_scan(ci_request_t *req, gw_test_req_data_t *data)
         void *outputFileBuffer;
         size_t outputLength;
                 
-        if (data->body.type == AV_BT_FILE){
-            ci_debug_printf(4, "rebuild_scan: AV_BT_FILE\n");
-            wchar_t filepath [AV_BT_FILE_PATH_SIZE];
-            mbstowcs(filepath, data->body.store.file->filename, AV_BT_FILE_PATH_SIZE);
+        if (data->body.type == GW_BT_FILE){
+            ci_debug_printf(4, "rebuild_scan: GW_BT_FILE\n");
+            wchar_t filepath [GW_BT_FILE_PATH_SIZE];
+            mbstowcs(filepath, data->body.store.file->filename, GW_BT_FILE_PATH_SIZE);
             filetypeIndex = GWDetermineFileTypeFromFile(filepath);
             filetypeIndex = cli_ft(filetypeIndex);
             filetype = gwFileTypeResults[filetypeIndex];
@@ -514,11 +514,11 @@ static int rebuild_scan(ci_request_t *req, gw_test_req_data_t *data)
             }
             ci_debug_printf(4, "rebuild_scan: GWMemoryToMemoryProtect rebuilt size= %lu\n", outputLength);  
             gw_body_data_release(&data->body);
-            gw_body_data_new(&data->body, AV_BT_FILE, outputLength);
+            gw_body_data_new(&data->body, GW_BT_FILE, outputLength);
             gw_body_data_write(&data->body, outputFileBuffer, outputLength, 1);            
         }
-        else{ // if (data->body.type == AV_BT_MEM)
-            ci_debug_printf(4, "rebuild_scan: AV_BT_MEM\n");
+        else{ // if (data->body.type == GW_BT_MEM)
+            ci_debug_printf(4, "rebuild_scan: GW_BT_MEM\n");
         
             filetypeIndex = GWDetermineFileTypeFromFileInMem(data->body.store.mem->buf, data->body.store.mem->bufsize); 
             filetypeIndex = cli_ft(filetypeIndex);
@@ -538,7 +538,7 @@ static int rebuild_scan(ci_request_t *req, gw_test_req_data_t *data)
             // Replace the original body
             //  this should be done using library functions working on gw_test_req_data_t, rather than here directly. 
             ci_membuf_free(data->body.store.mem);
-            gw_body_data_new(&data->body, AV_BT_MEM, outputLength);
+            gw_body_data_new(&data->body, GW_BT_MEM, outputLength);
             gw_body_data_write(&data->body, outputFileBuffer, outputLength, 1);
             
         }
@@ -599,9 +599,9 @@ static int init_body_data(ci_request_t *req)
      
     if (scan_from_mem &&
         data->expected_size > 0 && data->expected_size < CI_BODY_MAX_MEM)
-        gw_body_data_new(&(data->body), AV_BT_MEM, data->expected_size);
+        gw_body_data_new(&(data->body), GW_BT_MEM, data->expected_size);
     else
-        gw_body_data_new(&(data->body), AV_BT_FILE, data->args.sizelimit==0 ? 0 : data->max_object_size);
+        gw_body_data_new(&(data->body), GW_BT_FILE, data->args.sizelimit==0 ? 0 : data->max_object_size);
         /*Icap server can not send data at the begining.
         The following call does not needed because the c-icap
         does not send any data if the ci_req_unlock_data is not called:*/
@@ -611,7 +611,7 @@ static int init_body_data(ci_request_t *req)
          For now no data can send */
     gw_body_data_lock_all(&(data->body));
 
-    if (data->body.type == AV_BT_NONE)           /*Memory allocation or something else ..... */
+    if (data->body.type == GW_BT_NONE)           /*Memory allocation or something else ..... */
         return CI_ERROR;
 
     return CI_OK;
@@ -716,12 +716,12 @@ void rebuild_content_length(ci_request_t *req, gw_body_data_t *bd)
     ci_simple_file_t *body = NULL;
     ci_membuf_t *memBuf = NULL;
 
-    if (bd->type == AV_BT_FILE) {
+    if (bd->type == GW_BT_FILE) {
         body = bd->store.file;
         assert(body->readpos == 0);
         new_file_size = body->endpos;
     }
-    else if (bd->type == AV_BT_MEM) {
+    else if (bd->type == GW_BT_MEM) {
         memBuf = bd->store.mem;
         new_file_size = memBuf->endpos;
     }

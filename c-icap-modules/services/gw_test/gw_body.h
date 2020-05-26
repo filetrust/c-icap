@@ -3,7 +3,7 @@
 
 #include "body.h"
 
-enum av_body_type {AV_BT_NONE=0, AV_BT_FILE, AV_BT_MEM};
+enum gw_body_type {GW_BT_NONE=0, GW_BT_FILE, GW_BT_MEM};
 
 typedef struct gw_body_data {
     union {
@@ -12,15 +12,15 @@ typedef struct gw_body_data {
     } store;
     int buf_exceed;
     ci_simple_file_t *decoded;
-    enum av_body_type type;
+    enum gw_body_type type;
 } gw_body_data_t;
 
-#define gw_body_data_lock_all(bd) (void)((bd)->type == AV_BT_FILE && (ci_simple_file_lock_all((bd)->store.file)))
-#define gw_body_data_unlock(bd, len) (void)((bd)->type == AV_BT_FILE && (ci_simple_file_unlock((bd)->store.file, len)))
-#define gw_body_data_unlock_all(bd) (void)((bd)->type == AV_BT_FILE && (ci_simple_file_unlock_all((bd)->store.file)))
-#define gw_body_data_size(bd) ((bd)->type == AV_BT_FILE ? (bd)->store.file->endpos : ((bd)->type == AV_BT_MEM ? (bd)->store.mem->endpos : 0))
+#define gw_body_data_lock_all(bd) (void)((bd)->type == GW_BT_FILE && (ci_simple_file_lock_all((bd)->store.file)))
+#define gw_body_data_unlock(bd, len) (void)((bd)->type == GW_BT_FILE && (ci_simple_file_unlock((bd)->store.file, len)))
+#define gw_body_data_unlock_all(bd) (void)((bd)->type == GW_BT_FILE && (ci_simple_file_unlock_all((bd)->store.file)))
+#define gw_body_data_size(bd) ((bd)->type == GW_BT_FILE ? (bd)->store.file->endpos : ((bd)->type == GW_BT_MEM ? (bd)->store.mem->endpos : 0))
 
-void gw_body_data_new(gw_body_data_t *bd, enum av_body_type type,  int size);
+void gw_body_data_new(gw_body_data_t *bd, enum gw_body_type type,  int size);
 void gw_body_data_named(gw_body_data_t *bd, const char *dir, const char *name);
 void gw_body_data_destroy(gw_body_data_t *body);
 void gw_body_data_release(gw_body_data_t *body);
