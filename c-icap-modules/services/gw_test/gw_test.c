@@ -513,7 +513,7 @@ static int rebuild_scan(ci_request_t *req, gw_test_req_data_t *data)
                 return CI_ERROR;
             }
             ci_debug_printf(4, "rebuild_scan: GWMemoryToMemoryProtect rebuilt size= %lu\n", outputLength);  
-            gw_body_data_release(&data->body);
+            gw_body_data_destroy(&data->body);
             gw_body_data_new(&data->body, GW_BT_FILE, outputLength);
             gw_body_data_write(&data->body, outputFileBuffer, outputLength, 1);            
         }
