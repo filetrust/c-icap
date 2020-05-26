@@ -51,10 +51,12 @@ static int AV_SCAN_FAILURES = -1;
 
 /*********************/
 /* Formating table   */
-static int fmt_virus_scan_http_url(ci_request_t *req, char *buf, int len, const char *param);
+static int fmt_gw_test_http_url(ci_request_t *req, char *buf, int len, const char *param);
+static int fmt_gw_test_error_code(ci_request_t *req, char *buf, int len, const char *param);
 
 struct ci_fmt_entry virus_scan_format_table [] = {
-    {"%VU", "The HTTP url", fmt_virus_scan_http_url},
+    {"%GU", "The HTTP url", fmt_gw_test_http_url},
+    {"%GW", "The Error code", fmt_gw_test_error_code},
     { NULL, NULL, NULL}
 };
 
@@ -86,7 +88,6 @@ int cfg_SendPercentData(const char *directive, const char **argv, void *setdata)
 int cfg_av_set_str_vector(const char *directive, const char **argv, void *setdata);
 
 /*General functions*/
-static int get_filetype(ci_request_t *req, int *encoding);
 static void set_istag(ci_service_xdata_t *srv_xdata);
 static void cmd_reload_istag(const char *name, int type, void *data);
 static int init_body_data(ci_request_t *req);
@@ -206,6 +207,8 @@ void *gw_test_init_request_data(ci_request_t *req)
           memset(&data->body,0, sizeof(gw_body_data_t));
           data->error_page = NULL;
           data->url_log[0] = '\0';
+          data->gw_status = GW_STATUS_UNDEFINED;
+          data->gw_processing = GW_PROCESSING_UNDEFINED;
           data->must_scanned = SCAN;
           if (ALLOW204)
                data->args.enable204 = 1;
@@ -387,13 +390,34 @@ int gw_test_end_of_data_handler(ci_request_t *req)
 {
     gw_test_req_data_t *data = ci_service_data(req);
     
-    if (!data || data->body.type == GW_BT_NONE)
+    if (!data || data->body.type == GW_BT_NONE){
+        data->gw_processing = GW_PROCESSING_NONE;
         return CI_MOD_DONE;
+    }
         
     if (rebuild_scan(req, data) == CI_ERROR) {
          ci_debug_printf(1, "Error while scanning for virus. Aborting....\n");
          return CI_ERROR;
     }   
+    
+    if (data->gw_status == eGwFileStatus_Success){
+        if(data->gw_processing == GW_PROCESSING_SCANNED){
+            ci_request_set_str_attribute(req,"gw_test:action", "rebuilt");
+        } else if (data->gw_processing == GW_PROCESSING_NONE){
+            ci_request_set_str_attribute(req,"gw_test:action", "none");
+            return CI_MOD_ALLOW204;
+        } else {
+            ci_debug_printf(1, "Unexpected gw_processing status %d\n", data->gw_processing);            
+        }
+    } else if (data->gw_status == eGwFileStatus_Error){
+          generate_error_page(data, req);
+          ci_request_set_str_attribute(req,"virus_scan:action", "blocked");
+    } else{
+        generate_error_page(data, req);
+        ci_debug_printf(1, "Unexpected gw_status %d\n", data->gw_status);   
+        ci_request_set_str_attribute(req,"virus_scan:action", "errored");   
+    }   
+        
     rebuild_content_length(req, &data->body);
     
     // Add header to show rebuilt status
@@ -477,16 +501,20 @@ static int rebuild_scan(ci_request_t *req, gw_test_req_data_t *data)
         if (data->body.decoded){
             //scan_status = data->engine[i]->scan_simple_file(data->body.decoded, &data->virus_info);
             ci_debug_printf(4, "rebuild_scan: decoded\n")
+            data->gw_processing = GW_PROCESSING_NONE;
             return CI_OK;
         }
         
         // Initialise the library with the content management policyl
         int returnStatus;
-		
+        
+        data->gw_processing = GW_PROCESSING_SCANNED;
+        
         returnStatus = gw_sdk_file_config_xml(gw_sdk, SanitiseAll());
         if (returnStatus != eGwFileStatus_Success)
         {
-            ci_debug_printf(4, "rebuild_scan: GWFileConfigXML error= %d\n", returnStatus);      
+            ci_debug_printf(4, "rebuild_scan: GWFileConfigXML error= %d\n", returnStatus);   
+            data->gw_status = returnStatus;
             return CI_ERROR;
         }       
         
@@ -501,18 +529,23 @@ static int rebuild_scan(ci_request_t *req, gw_test_req_data_t *data)
             filetypeIndex = gw_sdk_determine_file_type_from_file(gw_sdk, data->body.store.file->filename);
             filetypeIndex = cli_ft(filetypeIndex);
             filetype = gwFileTypeResults[filetypeIndex];
-            ci_debug_printf(4, "rebuild_scan: filetype = %s\n", filetype);    
+            ci_debug_printf(4, "rebuild_scan: filetype = %s\n", filetype);  
+            data->gw_processing = GW_PROCESSING_SCANNED;
             
             returnStatus = gw_sdk_file_protect(gw_sdk, data->body.store.file->filename, filetype,
-                                            &outputFileBuffer, &outputLength);
-            if (returnStatus != eGwFileStatus_Success)
+                                            &outputFileBuffer, &outputLength);                                          
+            data->gw_status = returnStatus; 
+            
+            if (returnStatus == eGwFileStatus_InternalError)
             {
-                ci_debug_printf(4, "rebuild_scan: GWMemoryToMemoryProtect error= %d\n", returnStatus);      
+                ci_debug_printf(4, "rebuild_scan: GWMemoryToMemoryProtect error= %d\n", returnStatus);    
                 return CI_ERROR;
             }
-            ci_debug_printf(4, "rebuild_scan: GWMemoryToMemoryProtect rebuilt size= %lu\n", outputLength);  
-            gw_body_data_replace_body(&data->body, outputFileBuffer, outputLength);
-          
+            
+            if (returnStatus == eGwFileStatus_Success){
+                ci_debug_printf(4, "rebuild_scan: GWMemoryToMemoryProtect rebuilt size= %lu\n", outputLength);  
+                gw_body_data_replace_body(&data->body, outputFileBuffer, outputLength);
+            }          
         }
         else{ // if (data->body.type == GW_BT_MEM)
             ci_debug_printf(4, "rebuild_scan: GW_BT_MEM\n");
@@ -521,18 +554,27 @@ static int rebuild_scan(ci_request_t *req, gw_test_req_data_t *data)
             filetypeIndex = cli_ft(filetypeIndex);
             filetype = gwFileTypeResults[filetypeIndex];
             ci_debug_printf(4, "rebuild_scan: filetype = %s\n", filetype);        
+            data->gw_processing = GW_PROCESSING_SCANNED;
 
             returnStatus = gw_sdk_memory_to_memory_protect(gw_sdk, data->body.store.mem->buf, data->body.store.mem->bufsize, filetype,
                                                     &outputFileBuffer, &outputLength);
-            if (returnStatus != eGwFileStatus_Success)
+            data->gw_status = returnStatus; 
+                                                    
+            if (returnStatus == eGwFileStatus_InternalError)
             {
                 ci_debug_printf(4, "rebuild_scan: GWMemoryToMemoryProtect error= %d\n", returnStatus);      
                 return CI_ERROR;
             }
-            
-            ci_debug_printf(4, "rebuild_scan: GWMemoryToMemoryProtect rebuilt size= %lu\n", outputLength);  
-            gw_body_data_replace_body(&data->body, outputFileBuffer, outputLength);
-           
+            if (returnStatus == eGwFileStatus_Success){
+                ci_debug_printf(4, "rebuild_scan: GWMemoryToMemoryProtect rebuilt size= %lu\n", outputLength);  
+                gw_body_data_replace_body(&data->body, outputFileBuffer, outputLength);
+            }           
+        }
+        
+        if (returnStatus == eGwFileStatus_Error)
+        {
+            ci_debug_printf(4, "rebuild_scan: eGwFileStatus_Error\n");  
+
         }
 
         ci_debug_printf(4, "rebuild_scanned\n");                
@@ -571,14 +613,6 @@ static int rebuild_scan(ci_request_t *req, gw_test_req_data_t *data)
 void set_istag(ci_service_xdata_t *srv_xdata)
 {
      ci_service_set_istag(srv_xdata, SDK_VERSION);
-}
-
-int get_filetype(ci_request_t *req, int *iscompressed)
-{
-      int filetype;
-      /*Use the ci_magic_req_data_type which caches the result*/
-      filetype = ci_magic_req_data_type(req, iscompressed);
-     return filetype;
 }
 
 static int init_body_data(ci_request_t *req)
@@ -623,18 +657,21 @@ void generate_error_page(gw_test_req_data_t *data, ci_request_t *req)
     ci_http_response_add_header(req, "Server: C-ICAP");
     ci_http_response_add_header(req, "Connection: close");
     ci_http_response_add_header(req, "Content-Type: text/html");
+    
+    error_page = ci_txt_template_build_content(req, "gw_test", "POLICY_ISSUE",
+                           virus_scan_format_table);
 
 
-    // lang = ci_membuf_attr_get(error_page, "lang");
-    // if (lang) {
-        // snprintf(buf, sizeof(buf), "Content-Language: %s", lang);
-        // buf[sizeof(buf)-1] = '\0';
-        // ci_http_response_add_header(req, buf);
-    // }
-    // else
+    lang = ci_membuf_attr_get(error_page, "lang");
+    if (lang) {
+        snprintf(buf, sizeof(buf), "content-language: %s", lang);
+        buf[sizeof(buf)-1] = '\0';
+        ci_http_response_add_header(req, buf);
+    }
+    else
         ci_http_response_add_header(req, "Content-Language: en");
 
- //   data->error_page = error_page;
+    data->error_page = error_page;
 }
 
 int av_file_types_init( struct av_file_types *ftypes)
@@ -771,16 +808,22 @@ int cfg_av_set_str_vector(const char *directive, const char **argv, void *setdat
 
 
 
-int fmt_virus_scan_http_url(ci_request_t *req, char *buf, int len, const char *param)
+int fmt_gw_test_http_url(ci_request_t *req, char *buf, int len, const char *param)
 {
     gw_test_req_data_t *data = ci_service_data(req);
     return snprintf(buf, len, "%s", data->url_log);
 }
 
+static int fmt_gw_test_error_code(ci_request_t *req, char *buf, int len, const char *param)
+{
+     gw_test_req_data_t *data = ci_service_data(req);
+     return snprintf(buf, len, "%d", data->gw_status);
+}
+
 void init_gw_sdk()
 {
-	gw_sdk = malloc(sizeof(glasswall_sdk_t));
-	glasswall_sdk_init(gw_sdk);	
+    gw_sdk = malloc(sizeof(glasswall_sdk_t));
+    glasswall_sdk_init(gw_sdk); 
 }
 
 char* SanitiseAll()

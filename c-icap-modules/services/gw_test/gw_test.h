@@ -7,7 +7,13 @@
 
 #define GW_RELOAD_ISTAG     "gw_test::reloadistag"
 
-enum {NO_DECISION = -1, NO_SCAN=0,SCAN,VIR_SCAN};
+/* Used to initialise gw_status */
+#define GW_STATUS_UNDEFINED 99
+
+enum {NO_DECISION = -1, NO_SCAN=0,SCAN};
+
+/* Used to define the gw_processing content */
+enum {GW_PROCESSING_UNDEFINED = -1, GW_PROCESSING_NONE=0, GW_PROCESSING_SCANNED};
 
 struct av_file_types {
     int *scantypes;
@@ -19,6 +25,8 @@ typedef struct gw_test_req_data {
     ci_request_t *req;
     int must_scanned ;
     int allow204;
+	int gw_status;					/* used to record the Glasswall processing status	*/
+	int gw_processing;				/* Used to record whether Glasswall processing is required */
     ci_membuf_t *error_page;
     char url_log[LOG_URL_SIZE];
     ci_off_t expected_size;
