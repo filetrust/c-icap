@@ -95,6 +95,15 @@ int gw_body_data_read(gw_body_data_t *body, char *buf, int len)
     return 0;
 }
 
+int gw_body_data_replace_body(gw_body_data_t *body, char *buf, int len)
+{
+	int bt;
+	bt = body->type;
+	gw_body_data_destroy(body);
+	gw_body_data_new(body, bt, len);
+	gw_body_data_write(body, buf, len, 1);	
+}
+
 int gw_decompress_to_simple_file(int encodeMethod, const char *inbuf, size_t inlen, struct ci_simple_file *outfile, ci_off_t max_size)
 {
 #if defined(HAVE_CICAP_DECOMPRESS_TO)

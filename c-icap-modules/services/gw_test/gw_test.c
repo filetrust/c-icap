@@ -513,9 +513,8 @@ static int rebuild_scan(ci_request_t *req, gw_test_req_data_t *data)
                 return CI_ERROR;
             }
             ci_debug_printf(4, "rebuild_scan: GWMemoryToMemoryProtect rebuilt size= %lu\n", outputLength);  
-            gw_body_data_destroy(&data->body);
-            gw_body_data_new(&data->body, GW_BT_FILE, outputLength);
-            gw_body_data_write(&data->body, outputFileBuffer, outputLength, 1);            
+            gw_body_data_replace_body(&data->body, outputFileBuffer, outputLength);
+          
         }
         else{ // if (data->body.type == GW_BT_MEM)
             ci_debug_printf(4, "rebuild_scan: GW_BT_MEM\n");
@@ -535,12 +534,8 @@ static int rebuild_scan(ci_request_t *req, gw_test_req_data_t *data)
             }
             
             ci_debug_printf(4, "rebuild_scan: GWMemoryToMemoryProtect rebuilt size= %lu\n", outputLength);  
-            // Replace the original body
-            //  this should be done using library functions working on gw_test_req_data_t, rather than here directly. 
-            ci_membuf_free(data->body.store.mem);
-            gw_body_data_new(&data->body, GW_BT_MEM, outputLength);
-            gw_body_data_write(&data->body, outputFileBuffer, outputLength, 1);
-            
+            gw_body_data_replace_body(&data->body, outputFileBuffer, outputLength);
+           
         }
 
         ci_debug_printf(4, "rebuild_scanned\n");                
