@@ -25,16 +25,16 @@ typedef struct gw_test_req_data {
     ci_request_t *req;
     int must_scanned ;
     int allow204;
-	int gw_status;					/* used to record the Glasswall processing status	*/
-	int gw_processing;				/* Used to record whether Glasswall processing is required */
+    int gw_status;                  /* used to record the Glasswall processing status   */
+    int gw_processing;              /* Used to record whether Glasswall processing is required */
     ci_membuf_t *error_page;
     char url_log[LOG_URL_SIZE];
     ci_off_t expected_size;
     struct{
-	  int enable204;
-	  int forcescan;
-	  int sizelimit;
-	  int mode;
+      int enable204;
+      int forcescan;
+      int sizelimit;
+      int mode;
     } args;
     ci_off_t max_object_size;
     int send_percent_bytes;

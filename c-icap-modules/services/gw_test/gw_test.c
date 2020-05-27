@@ -295,10 +295,20 @@ int virus_scan_write_to_net(char *buf, int len, ci_request_t *req)
 {
     int bytes;
     gw_test_req_data_t *data = ci_service_data(req);
+    ci_debug_printf(2, "virus_scan_write_to_net \n"); 
     if (!data)
         return CI_ERROR;
+    if (data->gw_status != eGwFileStatus_Success && !data->error_page)
+    {
+        ci_debug_printf(2, "virus_scan_write_to_net: CI_EOF \n");      
+        return CI_EOF;
+    }
 
-     /*if a virus found and no data sent, an inform page has already generated */
+    /*if a virus found and no data sent, an inform page has already generated */
+    if (data->error_page){
+        ci_debug_printf(2, "virus_scan_write_to_net: error_page \n");      
+        return ci_membuf_read(data->error_page, buf, len);
+    }
 
     if(data->body.type != GW_BT_NONE)
         bytes = gw_body_data_read(&data->body, buf, len);
