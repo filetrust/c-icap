@@ -46,7 +46,4 @@ typedef struct gw_test_req_data {
 int av_file_types_init( struct av_file_types *ftypes);
 void av_file_types_destroy( struct av_file_types *ftypes);
 
-/*Configuration Functions*/
-int cfg_ScanFileTypes(const char *directive, const char **argv, void *setdata);
-
 #endif
