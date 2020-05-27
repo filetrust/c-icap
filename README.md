@@ -36,11 +36,16 @@ echo "/usr/lib" > glasswall.classic.conf
 ```
 Update the etc directory
 ```
-sudo cp glasswall.classic.conf /etc/lib.so.conf.d
+sudo cp glasswall.classic.conf /etc//ld.so.conf.d
 ```
 Run ldconfig to configure dynamic linker run-time bindings
 ```
-sudo ldconfig -p
+sudo ldconfig
+```
+
+Check that the Glasswall library has been installed
+```
+sudo ldconfig -p | grep glasswall.classic
 ```
 
 Remove the .conf file
