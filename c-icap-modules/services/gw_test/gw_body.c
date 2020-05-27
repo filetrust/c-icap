@@ -95,7 +95,7 @@ int gw_body_data_read(gw_body_data_t *body, char *buf, int len)
     return 0;
 }
 
-int gw_body_data_replace_body(gw_body_data_t *body, char *buf, int len)
+void gw_body_data_replace_body(gw_body_data_t *body, char *buf, int len)
 {
 	int bt;
 	bt = body->type;
