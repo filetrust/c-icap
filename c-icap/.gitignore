@@ -24,7 +24,6 @@ mkinstalldirs
 stamp-h1
 TAGS
 TEST
-tests
 var
 .dirstamp
 
