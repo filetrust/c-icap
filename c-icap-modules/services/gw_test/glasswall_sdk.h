@@ -5,18 +5,18 @@
 #define FILETYPE_SIZE 6
 
 typedef struct glasswall_sdk {
-	int (*gw_file_config_xml)(wchar_t * xmlstring);
+    int (*gw_file_config_xml)(wchar_t * xmlstring);
 
-	int (*gw_memory_to_memory_protect)(void *inputBuffer, size_t inputBufferLength, const wchar_t* wcType,void **outputFileBuffer, size_t *outputLength);
-	int (*gw_file_protect)(const wchar_t * inputFilePathName, const wchar_t* wcType, void **outputFileBuffer, size_t *outputLength);
-	
-	int (*gw_determine_file_type_from_file)(const wchar_t* inputFilePathName);
-	int (*gw_determine_file_type_from_memory)(void* inputBuffer, size_t inputBufferSize);
+    int (*gw_memory_to_memory_protect)(void *inputBuffer, size_t inputBufferLength, const wchar_t* wcType,void **outputFileBuffer, size_t *outputLength);
+    int (*gw_file_protect)(const wchar_t * inputFilePathName, const wchar_t* wcType, void **outputFileBuffer, size_t *outputLength);
+    
+    int (*gw_determine_file_type_from_file)(const wchar_t* inputFilePathName);
+    int (*gw_determine_file_type_from_memory)(void* inputBuffer, size_t inputBufferSize);
 
     int (*gw_file_done)(void);
 
-	wchar_t *(*gw_file_version)(void);
-	
+    wchar_t *(*gw_file_version)(void);
+    
 } glasswall_sdk_t;
 
 void glasswall_sdk_init(glasswall_sdk_t* sdk);
