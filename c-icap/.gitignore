@@ -16,7 +16,6 @@ depcomp
 icap_send_file
 install-sh
 libtool
-ltmain.sh
 Makefile
 Makefile.in
 Makefile.Linux-Static
