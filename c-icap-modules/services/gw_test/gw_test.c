@@ -517,10 +517,10 @@ static int rebuild_scan(ci_request_t *req, gw_test_req_data_t *data)
 {
     if (handle_deflated(data)) {
         /*TODO Must check for errors*/
-        ci_debug_printf(4, "rebuild_scan\n");
+        ci_debug_printf(4, "rebuild_scan (%u)\n", data);
         if (data->body.decoded){
             //scan_status = data->engine[i]->scan_simple_file(data->body.decoded, &data->virus_info);
-            ci_debug_printf(4, "rebuild_scan: decoded\n")
+            ci_debug_printf(4, "rebuild_scan: decoded (%u)\n", data);
             data->gw_processing = GW_PROCESSING_NONE;
             return CI_OK;
         }
@@ -544,13 +544,13 @@ static int rebuild_scan(ci_request_t *req, gw_test_req_data_t *data)
         size_t outputLength;
 
         if (data->body.type == GW_BT_FILE){
-            ci_debug_printf(4, "rebuild_scan: GW_BT_FILE\n");
+            ci_debug_printf(4, "rebuild_scan: GW_BT_FILE (%u)\n", data);
 
             filetypeIndex = gw_sdk_determine_file_type_from_file(gw_sdk, data->body.store.file->filename);
             if (glasswall_processable(filetypeIndex)){
                 filetypeIndex = cli_ft(filetypeIndex);
                 filetype = gwFileTypeResults[filetypeIndex];
-                ci_debug_printf(4, "rebuild_scan: filetype = %s\n", filetype);
+                ci_debug_printf(4, "rebuild_scan: filetype = %s (%u)\n", filetype, data);
                 data->gw_processing = GW_PROCESSING_SCANNED;
 
                 returnStatus = gw_sdk_file_protect(gw_sdk, data->body.store.file->filename, filetype,
@@ -559,30 +559,30 @@ static int rebuild_scan(ci_request_t *req, gw_test_req_data_t *data)
 
                 if (returnStatus == eGwFileStatus_InternalError)
                 {
-                    ci_debug_printf(4, "rebuild_scan: GWMemoryToMemoryProtect error= %d\n", returnStatus);
+                    ci_debug_printf(4, "rebuild_scan: GWMemoryToMemoryProtect error= %d (%u)\n", returnStatus, data);
                     return CI_ERROR;
                 }
 
                 if (returnStatus == eGwFileStatus_Success){
-                    ci_debug_printf(4, "rebuild_scan: GWMemoryToMemoryProtect rebuilt size= %lu\n", outputLength);
+                    ci_debug_printf(4, "rebuild_scan: GWMemoryToMemoryProtect rebuilt size= %lu (%u)\n", outputLength, data);
                     gw_body_data_replace_body(&data->body, outputFileBuffer, outputLength);
                 }
             }
             else{
-                ci_debug_printf(4, "rebuild_scan: Filetype index %d no processing\n", filetypeIndex);
+                ci_debug_printf(4, "rebuild_scan: Filetype index %d no processing\n (%u)", filetypeIndex, data);
                 data->gw_processing = GW_PROCESSING_NONE;
                 return CI_OK;
             }
 
         }
         else{
-            ci_debug_printf(4, "rebuild_scan: GW_BT_MEM\n");
+            ci_debug_printf(4, "rebuild_scan: GW_BT_MEM (%u)\n", data);
 
             filetypeIndex = gw_sdk_determine_file_type_from_memory(gw_sdk, data->body.store.mem->buf, data->body.store.mem->bufsize);
             if (glasswall_processable(filetypeIndex)){
                 filetypeIndex = cli_ft(filetypeIndex);
                 filetype = gwFileTypeResults[filetypeIndex];
-                ci_debug_printf(4, "rebuild_scan: filetype = %s\n", filetype);
+                ci_debug_printf(4, "rebuild_scan: filetype = %s (%u)\n", filetype, data);
                 data->gw_processing = GW_PROCESSING_SCANNED;
 
                 returnStatus = gw_sdk_memory_to_memory_protect(gw_sdk, data->body.store.mem->buf, data->body.store.mem->bufsize, filetype,
@@ -591,16 +591,16 @@ static int rebuild_scan(ci_request_t *req, gw_test_req_data_t *data)
 
                 if (returnStatus == eGwFileStatus_InternalError)
                 {
-                    ci_debug_printf(4, "rebuild_scan: GWMemoryToMemoryProtect error= %d\n", returnStatus);
+                    ci_debug_printf(4, "rebuild_scan: GWMemoryToMemoryProtect error= %d (%u)\n", returnStatus, data);
                     return CI_ERROR;
                 }
                 if (returnStatus == eGwFileStatus_Success){
-                    ci_debug_printf(4, "rebuild_scan: GWMemoryToMemoryProtect rebuilt size= %lu\n", outputLength);
+                    ci_debug_printf(4, "rebuild_scan: GWMemoryToMemoryProtect rebuilt size= %lu (%u)\n", outputLength, data);
                     gw_body_data_replace_body(&data->body, outputFileBuffer, outputLength);
                 }
             }
             else{
-                ci_debug_printf(4, "rebuild_scan: GW_BT_MEM : Filetype index %d no processing\n", filetypeIndex);
+                ci_debug_printf(4, "rebuild_scan: GW_BT_MEM : Filetype index %d no processing (%u)\n", filetypeIndex, data);
                 data->gw_processing = GW_PROCESSING_NONE;
                 return CI_OK;
             }
@@ -608,11 +608,11 @@ static int rebuild_scan(ci_request_t *req, gw_test_req_data_t *data)
 
         if (returnStatus == eGwFileStatus_Error)
         {
-            ci_debug_printf(4, "rebuild_scan: eGwFileStatus_Error\n");
+            ci_debug_printf(4, "rebuild_scan: eGwFileStatus_Error (%u)\n", data);
 
         }
 
-        ci_debug_printf(4, "rebuild_scanned\n");
+        ci_debug_printf(4, "rebuild_scanned (%u)\n", data);
 
         /* we can not disinfect encoded files yet
            nor files which partialy sent back to client*/
