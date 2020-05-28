@@ -392,7 +392,7 @@ int gw_test_io(char *wbuf, int *wlen, char *rbuf, int *rlen, int iseof, ci_reque
 static int rebuild_scan(ci_request_t *req, gw_test_req_data_t *data);
 int gw_test_end_of_data_handler(ci_request_t *req)
 {
-    ci_debug_printf(5, "gw_test_end_of_data_handler");
+    ci_debug_printf(5, "gw_test_end_of_data_handler\n");
 
     gw_test_req_data_t *data = ci_service_data(req);
 
@@ -409,11 +409,11 @@ int gw_test_end_of_data_handler(ci_request_t *req)
     if (data->gw_status == eGwFileStatus_Success){
         if(data->gw_processing == GW_PROCESSING_SCANNED){
             ci_request_set_str_attribute(req,"gw_test:action", "rebuilt");
-            ci_debug_printf(5, "gw_test_end_of_data_handler GW_PROCESSING_SCANNED");
+            ci_debug_printf(5, "gw_test_end_of_data_handler GW_PROCESSING_SCANNED\n");
             rebuild_content_length(req, &data->body);
         } else if (data->gw_processing == GW_PROCESSING_NONE){
             ci_request_set_str_attribute(req,"gw_test:action", "none");
-            ci_debug_printf(5, "gw_test_end_of_data_handler GW_PROCESSING_NONE");
+            ci_debug_printf(5, "gw_test_end_of_data_handler GW_PROCESSING_NONE\n");
             return CI_MOD_ALLOW204;
         } else {
             ci_debug_printf(1, "Unexpected gw_processing status %d\n", data->gw_processing);
@@ -421,11 +421,19 @@ int gw_test_end_of_data_handler(ci_request_t *req)
     } else if (data->gw_status == eGwFileStatus_Error){
           generate_error_page(data, req);
           ci_request_set_str_attribute(req,"virus_scan:action", "blocked");
-          ci_debug_printf(5, "gw_test_end_of_data_handler eGwFileStatus_Error");
+          ci_debug_printf(5, "gw_test_end_of_data_handler eGwFileStatus_Error\n");
     } else{
-        generate_error_page(data, req);
-        ci_debug_printf(1, "Unexpected gw_status %d\n", data->gw_status);
-        ci_request_set_str_attribute(req,"virus_scan:action", "errored");
+        if (data->gw_processing == GW_PROCESSING_NONE)
+        {
+            ci_request_set_str_attribute(req,"gw_test:action", "none");
+            ci_debug_printf(5, "gw_test_end_of_data_handler GW_PROCESSING_NONE\n");
+            return CI_MOD_ALLOW204;            
+        }
+        else{
+            generate_error_page(data, req);
+            ci_debug_printf(1, "Unexpected gw_status %d\n", data->gw_status);
+            ci_request_set_str_attribute(req,"virus_scan:action", "errored");
+        }
     }
 
     if (data->error_page)
