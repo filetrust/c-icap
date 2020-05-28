@@ -56,7 +56,7 @@ static int fmt_gw_test_error_code(ci_request_t *req, char *buf, int len, const c
 
 struct ci_fmt_entry virus_scan_format_table [] = {
     {"%GU", "The HTTP url", fmt_gw_test_http_url},
-    {"%GW", "The Error code", fmt_gw_test_error_code},
+    {"%GE", "The Error code", fmt_gw_test_error_code},
     { NULL, NULL, NULL}
 };
 
@@ -431,9 +431,13 @@ int gw_test_end_of_data_handler(ci_request_t *req)
     if (data->error_page)
     {
         ci_debug_printf(5, "Error page to send\n");
+        int error_report_size;
+        error_report_size = ci_membuf_size(data->error_page);
+   
         gw_body_data_destroy(&data->body);
-        gw_body_data_new(&data->body, GW_BT_MEM, data->error_page->bufsize);
-        gw_body_data_write(&data->body, data->error_page->buf, data->error_page->bufsize, 1);
+        gw_body_data_new(&data->body, GW_BT_MEM, error_report_size);
+        gw_body_data_write(&data->body, data->error_page->buf, error_report_size, 1);
+        rebuild_content_length(req, &data->body);
     }
        
     ci_req_unlock_data(req);
@@ -690,7 +694,6 @@ void generate_error_page(gw_test_req_data_t *data, ci_request_t *req)
 
     error_page = ci_txt_template_build_content(req, "gw_test", "POLICY_ISSUE",
                            virus_scan_format_table);
-
 
     lang = ci_membuf_attr_get(error_page, "lang");
     if (lang) {
