@@ -257,8 +257,8 @@ int gw_test_check_preview_handler(char *preview_data, int preview_data_len,
      ci_debug_printf(6, "OK; the preview data size is %d\n", preview_data_len);
 
      if (!data || !ci_req_hasbody(req)){
-     ci_debug_printf(6, "No body data, allow 204\n");
-          return CI_MOD_ALLOW204;
+        ci_debug_printf(6, "No body data, allow 204\n");
+        return CI_MOD_ALLOW204;
      }
 
     data->max_object_size = MAX_OBJECT_SIZE;
@@ -268,6 +268,7 @@ int gw_test_check_preview_handler(char *preview_data, int preview_data_len,
     /*Compute the expected size, will be used by must_scanned*/
     content_size = ci_http_content_length(req);
     data->expected_size = content_size;
+    ci_debug_printf(6, "gw_test_check_preview_handler: expected_size is %ld\n", content_size);
 
     /*log objects url*/
     if (!ci_http_request_url(req, data->url_log, LOG_URL_SIZE)) {
@@ -286,13 +287,15 @@ int gw_test_check_preview_handler(char *preview_data, int preview_data_len,
                                 ci_req_hasalldata(req)) == CI_ERROR)
         return CI_ERROR;
     }
+    ci_debug_printf(6, "gw_test_check_preview_handler: gw_body_data_write data_len %d\n", preview_data_len);
 
     return CI_MOD_CONTINUE;
 }
 
-
 int virus_scan_write_to_net(char *buf, int len, ci_request_t *req)
 {
+    ci_debug_printf(6, "virus_scan_write_to_net; buf len is %d\n", len);
+
     int bytes;
     gw_test_req_data_t *data = ci_service_data(req);
     if (!data)
@@ -304,35 +307,25 @@ int virus_scan_write_to_net(char *buf, int len, ci_request_t *req)
         bytes = gw_body_data_read(&data->body, buf, len);
     else
         bytes =0;
+
+    ci_debug_printf(6, "virus_scan_write_to_net; write bytes is %d\n", bytes);
+
     return bytes;
 }
 
 int virus_scan_read_from_net(char *buf, int len, int iseof, ci_request_t *req)
 {
      /*We can put here scanning hor jscripts and html and raw data ...... */
-     int ret;
-     int allow_transfer;
+    ci_debug_printf(6, "virus_scan_read_from_net; buf len is %d, iseof is %d\n", len, iseof);
+
+     //int ret;
+    // int allow_transfer;
      gw_test_req_data_t *data = ci_service_data(req);
      if (!data)
           return CI_ERROR;
 
-     if (data->must_scanned == NO_DECISION) {
-         /*Build preview data
-           TODO: move to c-icap/request.c ....
-          */
-         if (len) {
-             ret = ci_buf_reset_size(&(req->preview_data), len > 1024? 1024 : len);
-             assert(ret > 0);
-             ci_buf_write(&(req->preview_data), buf, len > 1024 ? 1024 : len);
-         }
-
-         if (init_body_data(req) == CI_ERROR)
-             return CI_ERROR;
-     }
-     assert(data->must_scanned != NO_DECISION);
-
      if (data->body.type == GW_BT_NONE) /*No body data? consume all content*/
-     return len;
+        return len;
 
      if (data->must_scanned == NO_SCAN){
          /*if must not scanned then simply write the data and exit..... */
@@ -342,7 +335,7 @@ int virus_scan_read_from_net(char *buf, int len, int iseof, ci_request_t *req)
      if (data->args.sizelimit
          && gw_body_data_size(&data->body) >= data->max_object_size) {
          ci_debug_printf(5, "Object bigger than max scanable file. \n");
-          data->must_scanned = 0;
+          data->must_scanned = NO_SCAN;
 
           if(data->args.mode == 1){
               /*We are in simple mode we can not send early ICAP responses. What?*/
@@ -354,20 +347,31 @@ int virus_scan_read_from_net(char *buf, int len, int iseof, ci_request_t *req)
               gw_body_data_unlock_all(&data->body);        /*Unlock all body data to continue send them..... */
           }
 
-     }                          /*else Allow transfer data->send_percent_bytes of the data */
-     else if (data->args.mode != 1 &&   /*not in the simple mode */
-              data->start_send_after < gw_body_data_size(&data->body)) {
-          ci_req_unlock_data(req);
-          assert(data->send_percent_bytes >= 0 && data->send_percent_bytes <= 100);
-          allow_transfer =
-              (data->send_percent_bytes * (gw_body_data_size(&data->body) + len)) / 100;
-          gw_body_data_unlock(&data->body, allow_transfer);
-     }
+     } 
+     ci_debug_printf(5, "virus_scan_read_from_net:Writing to data->body, %d bytes \n", len);
+
      return gw_body_data_write(&data->body, buf, len, iseof);
 }
 
 int gw_test_io(char *wbuf, int *wlen, char *rbuf, int *rlen, int iseof, ci_request_t *req)
 {
+    char printBuffer[100];
+    char tempBuffer[20];
+    printBuffer[0] = '\0';
+    strcat(printBuffer, "gw_test_io, ");
+
+    if (wlen) {
+        sprintf(tempBuffer, "wlen=%d, ", *wlen);
+        strcat(printBuffer, tempBuffer);
+    }
+    if (rlen) {
+        sprintf(tempBuffer, "rlen=%d, ", *rlen);
+        strcat(printBuffer, tempBuffer);
+    }
+    sprintf(tempBuffer, "iseof=%d\n", iseof);
+    strcat(printBuffer, tempBuffer);
+    ci_debug_printf(5, printBuffer);
+
      if (rbuf && rlen) {
           *rlen = virus_scan_read_from_net(rbuf, *rlen, iseof, req);
       if (*rlen == CI_ERROR)
@@ -388,6 +392,8 @@ int gw_test_io(char *wbuf, int *wlen, char *rbuf, int *rlen, int iseof, ci_reque
 static int rebuild_scan(ci_request_t *req, gw_test_req_data_t *data);
 int gw_test_end_of_data_handler(ci_request_t *req)
 {
+    ci_debug_printf(5, "gw_test_end_of_data_handler");
+
     gw_test_req_data_t *data = ci_service_data(req);
 
     if (!data || data->body.type == GW_BT_NONE){
@@ -403,8 +409,11 @@ int gw_test_end_of_data_handler(ci_request_t *req)
     if (data->gw_status == eGwFileStatus_Success){
         if(data->gw_processing == GW_PROCESSING_SCANNED){
             ci_request_set_str_attribute(req,"gw_test:action", "rebuilt");
+            ci_debug_printf(5, "gw_test_end_of_data_handler GW_PROCESSING_SCANNED");
+            rebuild_content_length(req, &data->body);
         } else if (data->gw_processing == GW_PROCESSING_NONE){
             ci_request_set_str_attribute(req,"gw_test:action", "none");
+            ci_debug_printf(5, "gw_test_end_of_data_handler GW_PROCESSING_NONE");
             return CI_MOD_ALLOW204;
         } else {
             ci_debug_printf(1, "Unexpected gw_processing status %d\n", data->gw_processing);
@@ -412,16 +421,21 @@ int gw_test_end_of_data_handler(ci_request_t *req)
     } else if (data->gw_status == eGwFileStatus_Error){
           generate_error_page(data, req);
           ci_request_set_str_attribute(req,"virus_scan:action", "blocked");
+          ci_debug_printf(5, "gw_test_end_of_data_handler eGwFileStatus_Error");
     } else{
         generate_error_page(data, req);
         ci_debug_printf(1, "Unexpected gw_status %d\n", data->gw_status);
         ci_request_set_str_attribute(req,"virus_scan:action", "errored");
     }
 
-    rebuild_content_length(req, &data->body);
-
-    // Add header to show rebuilt status
-
+    if (data->error_page)
+    {
+        ci_debug_printf(5, "Error page to send\n");
+        gw_body_data_destroy(&data->body);
+        gw_body_data_new(&data->body, GW_BT_MEM, data->error_page->bufsize);
+        gw_body_data_write(&data->body, data->error_page->buf, data->error_page->bufsize, 1);
+    }
+       
     ci_req_unlock_data(req);
     gw_body_data_unlock_all(&data->body);
 
