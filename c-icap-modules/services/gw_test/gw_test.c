@@ -30,10 +30,8 @@ void init_gw_sdk();
 /***********************************************************************************/
 /* Module definitions                                                              */
 
-static int SEND_PERCENT_DATA = 0;      /* By default will not send any bytes without check them before */
 static int ALLOW204 = 1;
 static ci_off_t MAX_OBJECT_SIZE = 5*1024*1024;
-static ci_off_t START_SEND_AFTER = 0;
 static int PASSONERROR = 0;
 #define GW_VERSION_SIZE 15
 #define GW_BT_FILE_PATH_SIZE 150
@@ -102,10 +100,7 @@ static int init_body_data(ci_request_t *req);
 
 /*Configuration Table .....*/
 static struct ci_conf_entry conf_variables[] = {
-     {"SendPercentData",  &SEND_PERCENT_DATA, cfg_SendPercentData, NULL},
      {"MaxObjectSize", &MAX_OBJECT_SIZE, ci_cfg_size_off, NULL},
-     {"StartSendingDataAfter", &START_SEND_AFTER, ci_cfg_size_off, NULL},
-     {"StartSendPercentDataAfter", &START_SEND_AFTER, ci_cfg_size_off, NULL},
      {"Allow204Responces", &ALLOW204, ci_cfg_onoff, NULL},
      {"PassOnError", &PASSONERROR, ci_cfg_onoff, NULL},
 };
@@ -142,7 +137,7 @@ int gw_test_init_service(ci_service_xdata_t *srv_xdata,
      magic_db = server_conf->MAGIC_DB;
      av_file_types_init(&SCAN_FILE_TYPES);
 
-     ci_debug_printf(10, "Going to initialize virus_scan\n");
+     ci_debug_printf(10, "Going to initialize gw_test\n");
      gw_test_xdata = srv_xdata;      /*Needed by db_reload command */
      ci_service_set_preview(srv_xdata, 1024);
      ci_service_enable_204(srv_xdata);
@@ -262,8 +257,6 @@ int gw_test_check_preview_handler(char *preview_data, int preview_data_len,
      }
 
     data->max_object_size = MAX_OBJECT_SIZE;
-    data->send_percent_bytes = SEND_PERCENT_DATA;
-    data->start_send_after = START_SEND_AFTER;
 
     /*Compute the expected size, will be used by must_scanned*/
     content_size = ci_http_content_length(req);
@@ -370,7 +363,7 @@ int gw_test_io(char *wbuf, int *wlen, char *rbuf, int *rlen, int iseof, ci_reque
     }
     sprintf(tempBuffer, "iseof=%d\n", iseof);
     strcat(printBuffer, tempBuffer);
-    ci_debug_printf(5, printBuffer);
+    ci_debug_printf(5, "%s", printBuffer);
 
      if (rbuf && rlen) {
           *rlen = virus_scan_read_from_net(rbuf, *rlen, iseof, req);
