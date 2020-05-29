@@ -286,7 +286,7 @@ int gw_test_check_preview_handler(char *preview_data, int preview_data_len,
 
 int virus_scan_write_to_net(char *buf, int len, ci_request_t *req)
 {
-    ci_debug_printf(8, "virus_scan_write_to_net; buf len is %d\n", len);
+    ci_debug_printf(9, "virus_scan_write_to_net; buf len is %d\n", len);
 
     int bytes;
     gw_test_req_data_t *data = ci_service_data(req);
@@ -300,7 +300,7 @@ int virus_scan_write_to_net(char *buf, int len, ci_request_t *req)
     else
         bytes =0;
 
-    ci_debug_printf(8, "virus_scan_write_to_net; write bytes is %d\n", bytes);
+    ci_debug_printf(9, "virus_scan_write_to_net; write bytes is %d\n", bytes);
 
     return bytes;
 }
@@ -308,7 +308,7 @@ int virus_scan_write_to_net(char *buf, int len, ci_request_t *req)
 int virus_scan_read_from_net(char *buf, int len, int iseof, ci_request_t *req)
 {
      /*We can put here scanning hor jscripts and html and raw data ...... */
-    ci_debug_printf(8, "virus_scan_read_from_net; buf len is %d, iseof is %d\n", len, iseof);
+    ci_debug_printf(7, "virus_scan_read_from_net; buf len is %d, iseof is %d\n", len, iseof);
 
      //int ret;
     // int allow_transfer;
