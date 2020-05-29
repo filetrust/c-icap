@@ -127,7 +127,7 @@ int gw_test_init_service(ci_service_xdata_t *srv_xdata,
 {
     init_gw_sdk();
     setlocale(LC_ALL, "");
-    ci_debug_printf(5, "gw_test_init_service......\n");
+    ci_debug_printf(3, "gw_test_init_service......\n");
 
     // Load the Glasswall library and get the version
     SDK_VERSION = gw_sdk_file_version(gw_sdk);
@@ -137,7 +137,7 @@ int gw_test_init_service(ci_service_xdata_t *srv_xdata,
      magic_db = server_conf->MAGIC_DB;
      av_file_types_init(&SCAN_FILE_TYPES);
 
-     ci_debug_printf(10, "Going to initialize gw_test\n");
+     ci_debug_printf(5, "Going to initialize gw_test\n");
      gw_test_xdata = srv_xdata;      /*Needed by db_reload command */
      ci_service_set_preview(srv_xdata, 1024);
      ci_service_enable_204(srv_xdata);
@@ -165,7 +165,7 @@ int gw_test_init_service(ci_service_xdata_t *srv_xdata,
 int gw_test_post_init_service(ci_service_xdata_t *srv_xdata,
                            struct ci_server_conf *server_conf)
 {
-    ci_debug_printf(5, "gw_test_post_init_service......\n");
+    ci_debug_printf(3, "gw_test_post_init_service......\n");
     set_istag(gw_test_xdata);
     register_command_extend(GW_RELOAD_ISTAG, ONDEMAND_CMD, NULL, cmd_reload_istag);
     return CI_OK;
@@ -173,7 +173,7 @@ int gw_test_post_init_service(ci_service_xdata_t *srv_xdata,
 
 void gw_test_close_service()
 {
-    ci_debug_printf(5, "gw_test_close_service......\n");
+    ci_debug_printf(3, "gw_test_close_service......\n");
     av_file_types_destroy(&SCAN_FILE_TYPES);
     ci_object_pool_unregister(AVREQDATA_POOL);
 
@@ -185,7 +185,7 @@ void *gw_test_init_request_data(ci_request_t *req)
     int preview_size;
     gw_test_req_data_t *data;
 
-    ci_debug_printf(5, "gw_test_init_request_data......\n");
+    ci_debug_printf(3, "gw_test_init_request_data......\n");
 
      preview_size = ci_req_preview_size(req);
 
@@ -195,8 +195,7 @@ void *gw_test_init_request_data(ci_request_t *req)
      if (ci_req_hasbody(req)) {
           ci_debug_printf(5, "Request type: %d. Preview size:%d\n", req->type, preview_size);
           if (!(data = ci_object_pool_alloc(AVREQDATA_POOL))) {
-               ci_debug_printf(1,
-                               "Error allocation memory for service data!!!!!!!\n");
+               ci_debug_printf(1, "Error allocation memory for service data!!!!!!!\n");
                return NULL;
           }
           memset(&data->body,0, sizeof(gw_body_data_t));
@@ -231,7 +230,7 @@ void *gw_test_init_request_data(ci_request_t *req)
 void gw_test_release_request_data(void *data)
 {
     if (data) {
-        ci_debug_printf(5, "Releasing gw_test data.....\n");
+        ci_debug_printf(3, "Releasing gw_test data.....\n");
 
         gw_body_data_destroy(&(((gw_test_req_data_t *) data)->body));
 
@@ -249,7 +248,7 @@ int gw_test_check_preview_handler(char *preview_data, int preview_data_len,
 
      gw_test_req_data_t *data = ci_service_data(req);
 
-     ci_debug_printf(6, "OK; the preview data size is %d\n", preview_data_len);
+     ci_debug_printf(3, "gw_test_check_preview_handler; preview data size is %d\n", preview_data_len);
 
      if (!data || !ci_req_hasbody(req)){
         ci_debug_printf(6, "No body data, allow 204\n");
@@ -287,7 +286,7 @@ int gw_test_check_preview_handler(char *preview_data, int preview_data_len,
 
 int virus_scan_write_to_net(char *buf, int len, ci_request_t *req)
 {
-    ci_debug_printf(6, "virus_scan_write_to_net; buf len is %d\n", len);
+    ci_debug_printf(8, "virus_scan_write_to_net; buf len is %d\n", len);
 
     int bytes;
     gw_test_req_data_t *data = ci_service_data(req);
@@ -301,7 +300,7 @@ int virus_scan_write_to_net(char *buf, int len, ci_request_t *req)
     else
         bytes =0;
 
-    ci_debug_printf(6, "virus_scan_write_to_net; write bytes is %d\n", bytes);
+    ci_debug_printf(8, "virus_scan_write_to_net; write bytes is %d\n", bytes);
 
     return bytes;
 }
@@ -309,7 +308,7 @@ int virus_scan_write_to_net(char *buf, int len, ci_request_t *req)
 int virus_scan_read_from_net(char *buf, int len, int iseof, ci_request_t *req)
 {
      /*We can put here scanning hor jscripts and html and raw data ...... */
-    ci_debug_printf(6, "virus_scan_read_from_net; buf len is %d, iseof is %d\n", len, iseof);
+    ci_debug_printf(8, "virus_scan_read_from_net; buf len is %d, iseof is %d\n", len, iseof);
 
      //int ret;
     // int allow_transfer;
@@ -341,7 +340,7 @@ int virus_scan_read_from_net(char *buf, int len, int iseof, ci_request_t *req)
           }
 
      } 
-     ci_debug_printf(5, "virus_scan_read_from_net:Writing to data->body, %d bytes \n", len);
+     ci_debug_printf(8, "virus_scan_read_from_net:Writing to data->body, %d bytes \n", len);
 
      return gw_body_data_write(&data->body, buf, len, iseof);
 }
@@ -363,7 +362,7 @@ int gw_test_io(char *wbuf, int *wlen, char *rbuf, int *rlen, int iseof, ci_reque
     }
     sprintf(tempBuffer, "iseof=%d\n", iseof);
     strcat(printBuffer, tempBuffer);
-    ci_debug_printf(5, "%s", printBuffer);
+    ci_debug_printf(9, "%s", printBuffer);
 
      if (rbuf && rlen) {
           *rlen = virus_scan_read_from_net(rbuf, *rlen, iseof, req);
@@ -385,7 +384,7 @@ int gw_test_io(char *wbuf, int *wlen, char *rbuf, int *rlen, int iseof, ci_reque
 static int rebuild_scan(ci_request_t *req, gw_test_req_data_t *data);
 int gw_test_end_of_data_handler(ci_request_t *req)
 {
-    ci_debug_printf(5, "gw_test_end_of_data_handler\n");
+    ci_debug_printf(3, "gw_test_end_of_data_handler\n");
 
     gw_test_req_data_t *data = ci_service_data(req);
 
@@ -517,10 +516,10 @@ static int rebuild_scan(ci_request_t *req, gw_test_req_data_t *data)
 {
     if (handle_deflated(data)) {
         /*TODO Must check for errors*/
-        ci_debug_printf(4, "rebuild_scan\n");
+        ci_debug_printf(5, "rebuild_scan\n");
         if (data->body.decoded){
             //scan_status = data->engine[i]->scan_simple_file(data->body.decoded, &data->virus_info);
-            ci_debug_printf(4, "rebuild_scan: decoded\n")
+            ci_debug_printf(5, "rebuild_scan: decoded\n")
             data->gw_processing = GW_PROCESSING_NONE;
             return CI_OK;
         }
@@ -533,7 +532,7 @@ static int rebuild_scan(ci_request_t *req, gw_test_req_data_t *data)
         returnStatus = gw_sdk_file_config_xml(gw_sdk, sanitise_all());
         if (returnStatus != eGwFileStatus_Success)
         {
-            ci_debug_printf(4, "rebuild_scan: GWFileConfigXML error= %d\n", returnStatus);
+            ci_debug_printf(5, "rebuild_scan: GWFileConfigXML error= %d\n", returnStatus);
             data->gw_status = returnStatus;
             return CI_ERROR;
         }
@@ -544,13 +543,13 @@ static int rebuild_scan(ci_request_t *req, gw_test_req_data_t *data)
         size_t outputLength;
 
         if (data->body.type == GW_BT_FILE){
-            ci_debug_printf(4, "rebuild_scan: GW_BT_FILE\n");
+            ci_debug_printf(5, "rebuild_scan: GW_BT_FILE\n");
 
             filetypeIndex = gw_sdk_determine_file_type_from_file(gw_sdk, data->body.store.file->filename);
             if (glasswall_processable(filetypeIndex)){
                 filetypeIndex = cli_ft(filetypeIndex);
                 filetype = gwFileTypeResults[filetypeIndex];
-                ci_debug_printf(4, "rebuild_scan: filetype = %s\n", filetype);
+                ci_debug_printf(5, "rebuild_scan: filetype = %s\n", filetype);
                 data->gw_processing = GW_PROCESSING_SCANNED;
 
                 returnStatus = gw_sdk_file_protect(gw_sdk, data->body.store.file->filename, filetype,
@@ -559,30 +558,30 @@ static int rebuild_scan(ci_request_t *req, gw_test_req_data_t *data)
 
                 if (returnStatus == eGwFileStatus_InternalError)
                 {
-                    ci_debug_printf(4, "rebuild_scan: GWMemoryToMemoryProtect error= %d\n", returnStatus);
+                    ci_debug_printf(5, "rebuild_scan: GWMemoryToMemoryProtect error= %d\n", returnStatus);
                     return CI_ERROR;
                 }
 
                 if (returnStatus == eGwFileStatus_Success){
-                    ci_debug_printf(4, "rebuild_scan: GWMemoryToMemoryProtect rebuilt size= %lu\n", outputLength);
+                    ci_debug_printf(5, "rebuild_scan: GWMemoryToMemoryProtect rebuilt size= %lu\n", outputLength);
                     gw_body_data_replace_body(&data->body, outputFileBuffer, outputLength);
                 }
             }
             else{
-                ci_debug_printf(4, "rebuild_scan: Filetype index %d no processing\n", filetypeIndex);
+                ci_debug_printf(5, "rebuild_scan: Filetype index %d no processing\n", filetypeIndex);
                 data->gw_processing = GW_PROCESSING_NONE;
                 return CI_OK;
             }
 
         }
         else{
-            ci_debug_printf(4, "rebuild_scan: GW_BT_MEM\n");
+            ci_debug_printf(5, "rebuild_scan: GW_BT_MEM\n");
 
             filetypeIndex = gw_sdk_determine_file_type_from_memory(gw_sdk, data->body.store.mem->buf, data->body.store.mem->bufsize);
             if (glasswall_processable(filetypeIndex)){
                 filetypeIndex = cli_ft(filetypeIndex);
                 filetype = gwFileTypeResults[filetypeIndex];
-                ci_debug_printf(4, "rebuild_scan: filetype = %s\n", filetype);
+                ci_debug_printf(5, "rebuild_scan: filetype = %s\n", filetype);
                 data->gw_processing = GW_PROCESSING_SCANNED;
 
                 returnStatus = gw_sdk_memory_to_memory_protect(gw_sdk, data->body.store.mem->buf, data->body.store.mem->bufsize, filetype,
@@ -595,12 +594,12 @@ static int rebuild_scan(ci_request_t *req, gw_test_req_data_t *data)
                     return CI_ERROR;
                 }
                 if (returnStatus == eGwFileStatus_Success){
-                    ci_debug_printf(4, "rebuild_scan: GWMemoryToMemoryProtect rebuilt size= %lu\n", outputLength);
+                    ci_debug_printf(5, "rebuild_scan: GWMemoryToMemoryProtect rebuilt size= %lu\n", outputLength);
                     gw_body_data_replace_body(&data->body, outputFileBuffer, outputLength);
                 }
             }
             else{
-                ci_debug_printf(4, "rebuild_scan: GW_BT_MEM : Filetype index %d no processing\n", filetypeIndex);
+                ci_debug_printf(5, "rebuild_scan: GW_BT_MEM : Filetype index %d no processing\n", filetypeIndex);
                 data->gw_processing = GW_PROCESSING_NONE;
                 return CI_OK;
             }
@@ -608,11 +607,10 @@ static int rebuild_scan(ci_request_t *req, gw_test_req_data_t *data)
 
         if (returnStatus == eGwFileStatus_Error)
         {
-            ci_debug_printf(4, "rebuild_scan: eGwFileStatus_Error\n");
-
+            ci_debug_printf(5, "rebuild_scan: eGwFileStatus_Error\n");
         }
 
-        ci_debug_printf(4, "rebuild_scanned\n");
+        ci_debug_printf(5, "rebuild_scanned\n");
 
         /* we can not disinfect encoded files yet
            nor files which partialy sent back to client*/
@@ -734,7 +732,7 @@ void av_file_types_destroy( struct av_file_types *ftypes)
 
 static void cmd_reload_istag(const char *name, int type, void *data)
 {
-    ci_debug_printf(1, "recomputing istag ...\n");
+    ci_debug_printf(5, "recomputing istag ...\n");
     if (gw_test_xdata)
         set_istag(gw_test_xdata);
 }
