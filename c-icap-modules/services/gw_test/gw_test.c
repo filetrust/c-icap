@@ -137,7 +137,7 @@ int gw_test_init_service(ci_service_xdata_t *srv_xdata,
      magic_db = server_conf->MAGIC_DB;
      av_file_types_init(&SCAN_FILE_TYPES);
 
-     ci_debug_printf(10, "Going to initialize virus_scan\n");
+     ci_debug_printf(10, "Going to initialize gw_test\n");
      gw_test_xdata = srv_xdata;      /*Needed by db_reload command */
      ci_service_set_preview(srv_xdata, 1024);
      ci_service_enable_204(srv_xdata);

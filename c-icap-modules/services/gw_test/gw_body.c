@@ -3,7 +3,7 @@
 #include "../../common.h"
 #include <assert.h>
 
-void gw_body_data_new(gw_body_data_t *bd, enum gw_body_type type,  int size)
+void gw_body_data_new(gw_body_data_t *bd, enum gw_body_type type, int size)
 {
     if (type == GW_BT_FILE) {
         bd->store.file = ci_simple_file_new(size);
