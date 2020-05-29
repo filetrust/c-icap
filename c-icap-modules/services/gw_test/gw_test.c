@@ -363,7 +363,7 @@ int gw_test_io(char *wbuf, int *wlen, char *rbuf, int *rlen, int iseof, ci_reque
     }
     sprintf(tempBuffer, "iseof=%d\n", iseof);
     strcat(printBuffer, tempBuffer);
-    ci_debug_printf(5, printBuffer);
+    ci_debug_printf(5, "%s", printBuffer);
 
      if (rbuf && rlen) {
           *rlen = virus_scan_read_from_net(rbuf, *rlen, iseof, req);
