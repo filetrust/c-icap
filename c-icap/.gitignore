@@ -49,6 +49,7 @@ var
 # Libraries
 .libs/*
 modules/.libs/*
+tests/.libs/*
 *.lib
 *.a
 *.la
