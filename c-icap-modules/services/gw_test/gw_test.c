@@ -558,12 +558,12 @@ static int rebuild_scan(ci_request_t *req, gw_test_req_data_t *data)
 
                 if (returnStatus == eGwFileStatus_InternalError)
                 {
-                    ci_debug_printf(5, "rebuild_scan: GWMemoryToMemoryProtect error= %d\n", returnStatus);
+                    ci_debug_printf(5, "rebuild_scan: GWFileProtect error= %d\n", returnStatus);
                     return CI_ERROR;
                 }
 
                 if (returnStatus == eGwFileStatus_Success){
-                    ci_debug_printf(5, "rebuild_scan: GWMemoryToMemoryProtect rebuilt size= %lu\n", outputLength);
+                    ci_debug_printf(5, "rebuild_scan: GWFileProtect rebuilt size= %lu\n", outputLength);
                     gw_body_data_replace_body(&data->body, outputFileBuffer, outputLength);
                 }
             }
