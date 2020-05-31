@@ -321,19 +321,10 @@ int virus_scan_read_from_net(char *buf, int len, int iseof, ci_request_t *req)
 
      if (data->args.sizelimit
          && gw_body_data_size(&data->body) >= data->max_object_size) {
-         ci_debug_printf(5, "Object bigger than max scanable file. \n");
-          data->must_scanned = NO_SCAN;
+         ci_debug_printf(2, "Object bigger than max scanable file. \n");
 
-          if(data->args.mode == 1){
-              /*We are in simple mode we can not send early ICAP responses. What?*/
-              ci_debug_printf(1, "Object does not fit to max object size and early responses are not allowed! \n");
-              return CI_ERROR;
-          }
-          else { /*Send early response.*/
-              ci_req_unlock_data(req);      /*Allow ICAP to send data before receives the EOF....... */
-              gw_body_data_unlock_all(&data->body);        /*Unlock all body data to continue send them..... */
-          }
-
+        /*TODO: Raise an error report rather than just raise an error */
+        return CI_ERROR;
      } 
      ci_debug_printf(8, "virus_scan_read_from_net:Writing to data->body, %d bytes \n", len);
 
