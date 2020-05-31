@@ -267,12 +267,12 @@ int gw_test_check_preview_handler(char *preview_data, int preview_data_len,
         ci_debug_printf(2, "Failed to retrieve HTTP request URL\n");
     }
 
+    if (init_body_data(req) == CI_ERROR)
+        return CI_ERROR;
+    
     if (preview_data_len == 0) {
         return CI_MOD_CONTINUE;
     }
-
-    if (init_body_data(req) == CI_ERROR)
-        return CI_ERROR;
 
     if (preview_data_len) {
         if (gw_body_data_write(&data->body, preview_data, preview_data_len,
