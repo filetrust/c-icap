@@ -319,11 +319,6 @@ int virus_scan_read_from_net(char *buf, int len, int iseof, ci_request_t *req)
      if (data->body.type == GW_BT_NONE) /*No body data? consume all content*/
         return len;
 
-     if (data->must_scanned == NO_SCAN){
-         /*if must not scanned then simply write the data and exit..... */
-          return gw_body_data_write(&data->body, buf, len, iseof);
-     }
-
      if (data->args.sizelimit
          && gw_body_data_size(&data->body) >= data->max_object_size) {
          ci_debug_printf(5, "Object bigger than max scanable file. \n");
