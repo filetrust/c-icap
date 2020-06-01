@@ -99,8 +99,9 @@ make
 sudo make install
 ```
 
-After installation, the configuration files for each module/service exist under the c-icap server configuration directory, the /usr/local/c-icap/etc/ using the location folder specified in the 'configure' commands above.  
-These configuration files need to be included into the main c-icap server configuration file, by adding the following 
+After installation, the configuration files for each module/service exist under the c-icap server configuration directory,  `/usr/local/c-icap/etc/` when using the location folder specified in the 'configure' commands above.  
+To register a module/service with the c-icap server an 'Include' line should be appended to the `c-icap.conf` file.
+For the `gw_test` service the following line should be appended.
 ```
 Include gw_test.conf
 ```
