@@ -114,11 +114,11 @@ sudo /usr/local/c-icap/bin/c-icap -N -D -d 10
 
 From a separate command prompt, run the client utility to send an options request
 ```
-/usr/local/c-icap/bin/c-icap-client -s gw_file
+/usr/local/c-icap/bin/c-icap-client -s gw_test
 ```
 
 Run the client utility sending a file through the ICAP Server.
 ```
-/usr/local/c-icap/bin/c-icap-client -f <full path to source file>  -o <full path to output file> -s gw_file
+/usr/local/c-icap/bin/c-icap-client -f <full path to source file>  -o <full path to output file> -s gw_test
 ```
 
