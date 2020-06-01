@@ -81,7 +81,7 @@ make install
 After installation, the configuration files for each module/service exist under the c-icap server configuration directory, the /usr/local/c-icap/etc/ using the location folder specified in the 'configure' commands above.  
 These configuration files need to be included into the main c-icap server configuration file, by adding the following 
 ```
-Include virus_scan.conf
+Include gw_test.conf
 ```
 
 ### Testing the Installation
