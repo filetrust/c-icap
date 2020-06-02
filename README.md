@@ -29,9 +29,9 @@ git clone https://github.com/filetrust/c-icap.git
 
 ### Installing the Glasswall Rebuild SDK
 
-Copy the `libglasswall.classic.so` shared library into the `/user/lib` folder.
+Copy the `libglasswall.classic.so` shared library into the `/usr/lib` folder.
 ```
-cp ./libglasswall.classic.so /user/lib
+cp ./libglasswall.classic.so /usr/lib
 ```
 
 ![Alternative instructions for Glasswall Developers](./README_GW.md)
