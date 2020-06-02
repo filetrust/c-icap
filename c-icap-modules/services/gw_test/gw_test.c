@@ -33,6 +33,7 @@ void init_gw_sdk();
 static int ALLOW204 = 1;
 static ci_off_t MAX_OBJECT_SIZE = 5*1024*1024;
 static int PASSONERROR = 0;
+static int DATA_CLEANUP = 1;
 #define GW_VERSION_SIZE 15
 #define GW_BT_FILE_PATH_SIZE 150
 
@@ -75,7 +76,7 @@ static int gw_test_check_preview_handler(char *preview_data, int preview_data_le
                                     ci_request_t *);
 static int gw_test_end_of_data_handler(ci_request_t *);
 static void *gw_test_init_request_data(ci_request_t *req);
-static void gw_test_release_request_data(void *data);
+static void gw_test_release_request_data(void *srv_data);
 static int gw_test_io(char *wbuf, int *wlen, char *rbuf, int *rlen, int iseof,
                  ci_request_t *req);
 
@@ -103,6 +104,7 @@ static struct ci_conf_entry conf_variables[] = {
      {"MaxObjectSize", &MAX_OBJECT_SIZE, ci_cfg_size_off, NULL},
      {"Allow204Responces", &ALLOW204, ci_cfg_onoff, NULL},
      {"PassOnError", &PASSONERROR, ci_cfg_onoff, NULL},
+     {"DataCleanup", &DATA_CLEANUP, ci_cfg_onoff, NULL},
 };
 
 
@@ -231,8 +233,18 @@ void gw_test_release_request_data(void *data)
 {
     if (data) {
         ci_debug_printf(3, "Releasing gw_test data.....\n");
-
-        gw_body_data_destroy(&(((gw_test_req_data_t *) data)->body));
+        gw_test_req_data_t *requestData = (gw_test_req_data_t *) data;
+        if (DATA_CLEANUP)
+        {            
+            gw_body_data_destroy(&requestData->body);
+        }
+        else
+        {
+            if (requestData->body.type == GW_BT_MEM)
+                gw_body_data_destroy(&requestData->body);
+            else
+                ci_debug_printf(3, "Leaving gw_test data body.....\n");
+        }
 
         if (((gw_test_req_data_t *) data)->error_page)
             ci_membuf_free(((gw_test_req_data_t *) data)->error_page);
