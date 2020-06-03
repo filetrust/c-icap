@@ -1524,7 +1524,7 @@ static int do_end_of_data(ci_request_t * req)
     return CI_OK;
 }
 
-
+void print_headers(ci_request_t * req);
 static int do_request(ci_request_t * req)
 {
     ci_service_xdata_t *srv_xdata = NULL;
@@ -1652,7 +1652,7 @@ static int do_request(ci_request_t * req)
             && req->service_data)
         req->current_service_mod->mod_release_request_data(req->service_data);
 
-//     debug_print_request(req);
+    print_headers(req);
     return ret_status;
 }
 
@@ -1663,7 +1663,7 @@ int process_request(ci_request_t * req)
     res = do_request(req);
 
     if (req->pstrblock_read_len) {
-        ci_debug_printf(5, "There are unparsed data od size %d: \"%.*s\"\n. Move to connection buffer\n", req->pstrblock_read_len, (req->pstrblock_read_len < 64 ? req->pstrblock_read_len : 64), req->pstrblock_read);
+        ci_debug_printf(5, "There are unparsed data of size %d: \"%.*s\"\n. Move to connection buffer\n", req->pstrblock_read_len, (req->pstrblock_read_len < 64 ? req->pstrblock_read_len : 64), req->pstrblock_read);
     }
 
     if (res<0 && req->request_header->bufused == 0) /*Did not read anything*/
@@ -1726,4 +1726,34 @@ int process_request(ci_request_t * req)
     }
 
     return res; /*Allow to log even the failed requests*/
+}
+
+void printhead(void *d, const char *head, const char *value)
+{
+    if (!head || !*head) {
+        ci_debug_printf(5, "\t%s\n", value);
+    } else {
+        ci_debug_printf(5, "\t%s: %s\n", head, value);
+    }
+}
+
+void print_headers(ci_request_t * req)
+{
+    int type;
+    ci_headers_list_t *headers;
+    ci_debug_printf(5, "\nICAP HEADERS:\n");
+    ci_headers_iterate(req->response_header, NULL, printhead);
+    ci_debug_printf(5, "\n");
+
+    if ((headers =  ci_http_response_headers(req)) == NULL) {
+        headers = ci_http_request_headers(req);
+        type = ICAP_REQMOD;
+    } else
+        type = ICAP_RESPMOD;
+
+    if (headers) {
+        ci_debug_printf(5, "%s HEADERS:\n", ci_method_string(type));
+        ci_headers_iterate(headers, NULL, printhead);
+        ci_debug_printf(5, "\n");
+    }
 }
