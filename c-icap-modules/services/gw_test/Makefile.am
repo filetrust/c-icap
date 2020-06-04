@@ -11,7 +11,7 @@ gw_test_la_LDFLAGS = -module -avoid-version
 gw_test_la_CFLAGS =
 gw_test_la_SOURCES = gw_test.c gw_body.c gwfiletypes.c glasswall_sdk.c
 
-TMPLS = templates/en/POLICY_ISSUE
+TMPLS = templates/en/POLICY_ISSUE templates/en-US/POLICY_ISSUE
 
 install-data-local:
 	for f in $(CONFS); do \
