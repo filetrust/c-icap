@@ -24,7 +24,6 @@
 #include <locale.h>
 
 void generate_error_page(gw_test_req_data_t *data, ci_request_t *req);
-char *virus_scan_compute_name(ci_request_t *req);
 static void rebuild_content_length(ci_request_t *req, gw_body_data_t *body);
 void init_gw_sdk();
 /***********************************************************************************/
@@ -38,22 +37,22 @@ static int DATA_CLEANUP = 1;
 #define GW_BT_FILE_PATH_SIZE 150
 
 static struct ci_magics_db *magic_db = NULL;
-static struct av_file_types SCAN_FILE_TYPES = {NULL, NULL};
+static struct gw_file_types SCAN_FILE_TYPES = {NULL, NULL};
 
 char* SDK_VERSION;
 
 /*Statistic  Ids*/
-static int AV_SCAN_REQS = -1;
-static int AV_SCAN_BYTES = -1;
-static int AV_VIRUSES_FOUND = -1;
-static int AV_SCAN_FAILURES = -1;
+static int GW_SCAN_REQS = -1;
+static int GW_SCAN_BYTES = -1;
+static int GW_ISSUES_FOUND = -1;
+static int GW_SCAN_FAILURES = -1;
 
 /*********************/
 /* Formating table   */
 static int fmt_gw_test_http_url(ci_request_t *req, char *buf, int len, const char *param);
 static int fmt_gw_test_error_code(ci_request_t *req, char *buf, int len, const char *param);
 
-struct ci_fmt_entry virus_scan_format_table [] = {
+struct ci_fmt_entry gw_test_report_format_table [] = {
     {"%GU", "The HTTP url", fmt_gw_test_http_url},
     {"%GE", "The Error code", fmt_gw_test_error_code},
     { NULL, NULL, NULL}
@@ -65,7 +64,7 @@ static glasswall_sdk_t* gw_sdk;
 /*virus_scan service extra data ... */
 static ci_service_xdata_t *gw_test_xdata = NULL;
 
-static int AVREQDATA_POOL = -1;
+static int GWREQDATA_POOL = -1;
 
 static int gw_test_init_service(ci_service_xdata_t *srv_xdata,
                            struct ci_server_conf *server_conf);
@@ -81,23 +80,15 @@ static int gw_test_io(char *wbuf, int *wlen, char *rbuf, int *rlen, int iseof,
                  ci_request_t *req);
 
 /*Arguments parse*/
-static void virus_scan_parse_args(gw_test_req_data_t *data, char *args);
+static void gw_test_parse_args(gw_test_req_data_t *data, char *args);
 /*Configuration Functions*/
-int cfg_SendPercentData(const char *directive, const char **argv, void *setdata);
-int cfg_av_set_str_vector(const char *directive, const char **argv, void *setdata);
+int cfg_ScanFileTypes(const char *directive, const char **argv, void *setdata);
 
 /*General functions*/
+static int get_filetype(ci_request_t *req, int *encoding);
 static void set_istag(ci_service_xdata_t *srv_xdata);
 static void cmd_reload_istag(const char *name, int type, void *data);
 static int init_body_data(ci_request_t *req);
-
-/*It is dangerous to pass directly fields of the limits structure in conf_variables,
-  becouse in the feature some of this fields will change type (from int to unsigned int
-  or from long to long long etc)
-  I must use global variables and use the post_init_service function to fill the
-  limits structure.
-  But, OK let it go for the time ....
-*/
 
 /*Configuration Table .....*/
 static struct ci_conf_entry conf_variables[] = {
@@ -105,12 +96,13 @@ static struct ci_conf_entry conf_variables[] = {
      {"Allow204Responses", &ALLOW204, ci_cfg_onoff, NULL},
      {"PassOnError", &PASSONERROR, ci_cfg_onoff, NULL},
      {"DataCleanup", &DATA_CLEANUP, ci_cfg_onoff, NULL},
+     {"ScanFileTypes", &SCAN_FILE_TYPES, cfg_ScanFileTypes, NULL},     
 };
 
 CI_DECLARE_MOD_DATA ci_service_module_t service = {
      "gw_test",              /*Module name */
      "Glasswall Test service",        /*Module short description */
-     ICAP_RESPMOD | ICAP_REQMOD,        /*Service type responce or request modification */
+     ICAP_RESPMOD | ICAP_REQMOD,        /*Service type response or request modification */
      gw_test_init_service,    /*init_service. */
      gw_test_post_init_service,   /*post_init_service. */
      gw_test_close_service,   /*close_service */
@@ -136,18 +128,17 @@ int gw_test_init_service(ci_service_xdata_t *srv_xdata,
     ci_debug_printf(4, "Glasswall SDK Version = %s\n", SDK_VERSION);
 
      magic_db = server_conf->MAGIC_DB;
-     av_file_types_init(&SCAN_FILE_TYPES);
+     gw_file_types_init(&SCAN_FILE_TYPES);
 
-     ci_debug_printf(5, "Going to initialize gw_test\n");
      gw_test_xdata = srv_xdata;      /*Needed by db_reload command */
      ci_service_set_preview(srv_xdata, 1024);
      ci_service_enable_204(srv_xdata);
      ci_service_set_transfer_preview(srv_xdata, "*");
 
      /*Initialize object pools*/
-     AVREQDATA_POOL = ci_object_pool_register("gw_test_req_data_t", sizeof(gw_test_req_data_t));
+     GWREQDATA_POOL = ci_object_pool_register("gw_test_req_data_t", sizeof(gw_test_req_data_t));
 
-     if(AVREQDATA_POOL < 0) {
+     if(GWREQDATA_POOL < 0) {
          ci_debug_printf(1, " gw_test_init_service: error registering object_pool gw_test_req_data_t\n");
          return CI_ERROR;
      }
@@ -155,10 +146,10 @@ int gw_test_init_service(ci_service_xdata_t *srv_xdata,
      /*initialize statistic counters*/
      /* TODO:convert to const after fix ci_stat_* api*/
      char *stats_label = "Service gw_test";
-     AV_SCAN_REQS = ci_stat_entry_register("Requests scanned", STAT_INT64_T, stats_label);
-     AV_SCAN_BYTES = ci_stat_entry_register("Body bytes scanned", STAT_KBS_T, stats_label);
-     AV_VIRUSES_FOUND = ci_stat_entry_register("Viruses found", STAT_INT64_T, stats_label);
-     AV_SCAN_FAILURES = ci_stat_entry_register("Scan failures", STAT_INT64_T, stats_label);
+     GW_SCAN_REQS = ci_stat_entry_register("Requests scanned", STAT_INT64_T, stats_label);
+     GW_SCAN_BYTES = ci_stat_entry_register("Body bytes scanned", STAT_KBS_T, stats_label);
+     GW_ISSUES_FOUND = ci_stat_entry_register("Issues found", STAT_INT64_T, stats_label);
+     GW_SCAN_FAILURES = ci_stat_entry_register("Scan failures", STAT_INT64_T, stats_label);
 
      return CI_OK;
 }
@@ -175,8 +166,8 @@ int gw_test_post_init_service(ci_service_xdata_t *srv_xdata,
 void gw_test_close_service()
 {
     ci_debug_printf(3, "gw_test_close_service......\n");
-    av_file_types_destroy(&SCAN_FILE_TYPES);
-    ci_object_pool_unregister(AVREQDATA_POOL);
+    gw_file_types_destroy(&SCAN_FILE_TYPES);
+    ci_object_pool_unregister(GWREQDATA_POOL);
 
     gw_sdk_file_done(gw_sdk);
 }
@@ -195,7 +186,7 @@ void *gw_test_init_request_data(ci_request_t *req)
      }
      if (ci_req_hasbody(req)) {
           ci_debug_printf(5, "Request type: %d. Preview size:%d\n", req->type, preview_size);
-          if (!(data = ci_object_pool_alloc(AVREQDATA_POOL))) {
+          if (!(data = ci_object_pool_alloc(GWREQDATA_POOL))) {
                ci_debug_printf(1, "Error allocation memory for service data!!!!!!!\n");
                return NULL;
           }
@@ -215,7 +206,7 @@ void *gw_test_init_request_data(ci_request_t *req)
 
           if (req->args[0] != '\0') {
                ci_debug_printf(5, "service arguments:%s\n", req->args);
-               virus_scan_parse_args(data, req->args);
+               gw_test_parse_args(data, req->args);
           }
           if (data->args.enable204 && ci_allow204(req))
                data->allow204 = 1;
@@ -251,7 +242,7 @@ void gw_test_release_request_data(void *data)
         ci_object_pool_free(data);
      }
 }
-
+static int must_scanned(ci_request_t *req, char *preview_data, int preview_data_len);
 int gw_test_check_preview_handler(char *preview_data, int preview_data_len,
                                     ci_request_t *req)
 {
@@ -284,7 +275,12 @@ int gw_test_check_preview_handler(char *preview_data, int preview_data_len,
     if (preview_data_len == 0) {
         return CI_MOD_CONTINUE;
     }
-
+    
+    if (must_scanned(req, preview_data, preview_data_len) == NO_SCAN){
+        ci_debug_printf(6, "Not in scan list. Allow it...... \n");
+        return CI_MOD_ALLOW204;
+    }
+    
     if (preview_data_len) {
         if (gw_body_data_write(&data->body, preview_data, preview_data_len,
                                 ci_req_hasalldata(req)) == CI_ERROR)
@@ -295,31 +291,28 @@ int gw_test_check_preview_handler(char *preview_data, int preview_data_len,
     return CI_MOD_CONTINUE;
 }
 
-int virus_scan_write_to_net(char *buf, int len, ci_request_t *req)
+int gw_test_write_to_net(char *buf, int len, ci_request_t *req)
 {
-    ci_debug_printf(9, "virus_scan_write_to_net; buf len is %d\n", len);
+    ci_debug_printf(9, "gw_test_write_to_net; buf len is %d\n", len);
 
     int bytes;
     gw_test_req_data_t *data = ci_service_data(req);
     if (!data)
         return CI_ERROR;
 
-     /*if a virus found and no data sent, an inform page has already generated */
-
     if(data->body.type != GW_BT_NONE)
         bytes = gw_body_data_read(&data->body, buf, len);
     else
         bytes =0;
 
-    ci_debug_printf(9, "virus_scan_write_to_net; write bytes is %d\n", bytes);
+    ci_debug_printf(9, "gw_test_write_to_net; write bytes is %d\n", bytes);
 
     return bytes;
 }
 
-int virus_scan_read_from_net(char *buf, int len, int iseof, ci_request_t *req)
+int gw_test_read_from_net(char *buf, int len, int iseof, ci_request_t *req)
 {
-     /*We can put here scanning hor jscripts and html and raw data ...... */
-    ci_debug_printf(7, "virus_scan_read_from_net; buf len is %d, iseof is %d\n", len, iseof);
+    ci_debug_printf(7, "gw_test_read_from_net; buf len is %d, iseof is %d\n", len, iseof);
 
      //int ret;
     // int allow_transfer;
@@ -337,7 +330,7 @@ int virus_scan_read_from_net(char *buf, int len, int iseof, ci_request_t *req)
         /*TODO: Raise an error report rather than just raise an error */
         return CI_ERROR;
      } 
-     ci_debug_printf(8, "virus_scan_read_from_net:Writing to data->body, %d bytes \n", len);
+     ci_debug_printf(8, "gw_test_read_from_net:Writing to data->body, %d bytes \n", len);
 
      return gw_body_data_write(&data->body, buf, len, iseof);
 }
@@ -362,18 +355,18 @@ int gw_test_io(char *wbuf, int *wlen, char *rbuf, int *rlen, int iseof, ci_reque
     ci_debug_printf(9, "%s", printBuffer);
 
      if (rbuf && rlen) {
-          *rlen = virus_scan_read_from_net(rbuf, *rlen, iseof, req);
+          *rlen = gw_test_read_from_net(rbuf, *rlen, iseof, req);
       if (*rlen == CI_ERROR)
            return CI_ERROR;
           /*else if (*rlen < 0) ignore*/
      }
      else if (iseof) {
-     if (virus_scan_read_from_net(NULL, 0, iseof, req) == CI_ERROR)
+     if (gw_test_read_from_net(NULL, 0, iseof, req) == CI_ERROR)
          return CI_ERROR;
      }
 
      if (wbuf && wlen) {
-          *wlen = virus_scan_write_to_net(wbuf, *wlen, req);
+          *wlen = gw_test_write_to_net(wbuf, *wlen, req);
      }
      return CI_OK;
 }
@@ -391,7 +384,7 @@ int gw_test_end_of_data_handler(ci_request_t *req)
     }
 
     if (rebuild_scan(req, data) == CI_ERROR) {
-         ci_debug_printf(1, "Error while scanning for virus. Aborting....\n");
+         ci_debug_printf(1, "Error while scanning. Aborting....\n");
          return CI_ERROR;
     }
 
@@ -500,13 +493,12 @@ static int handle_deflated(gw_test_req_data_t *data)
 #else
         err = ci_inflate_error(ret);
 #endif
-        ci_stat_uint64_inc(AV_SCAN_FAILURES, 1);
+        ci_stat_uint64_inc(GW_SCAN_FAILURES, 1);
         if (PASSONERROR) {
             ci_debug_printf(1, "Unable to uncompress deflate encoded data: %s! Let it pass due to PassOnError\n", err);
             return 1;
         }
 
-        /*virus_scan_inflate_error always return a no null description*/
         ci_debug_printf(1, "Unable to uncompress deflate encoded data: %s! Handle object as infected\n", err);
     }
     return 0;
@@ -520,13 +512,11 @@ static int rebuild_scan(ci_request_t *req, gw_test_req_data_t *data)
         /*TODO Must check for errors*/
         ci_debug_printf(5, "rebuild_scan\n");
         if (data->body.decoded){
-            //scan_status = data->engine[i]->scan_simple_file(data->body.decoded, &data->virus_info);
-            ci_debug_printf(5, "rebuild_scan: decoded\n")
+            ci_debug_printf(2, "rebuild_scan: decoded, no processing\n")
             data->gw_processing = GW_PROCESSING_NONE;
             return CI_OK;
         }
 
-        // Initialise the library with the content management policyl
         int returnStatus;
 
         data->gw_processing = GW_PROCESSING_SCANNED;
@@ -574,7 +564,6 @@ static int rebuild_scan(ci_request_t *req, gw_test_req_data_t *data)
                 data->gw_processing = GW_PROCESSING_NONE;
                 return CI_OK;
             }
-
         }
         else{
             ci_debug_printf(5, "rebuild_scan: GW_BT_MEM\n");
@@ -614,40 +603,26 @@ static int rebuild_scan(ci_request_t *req, gw_test_req_data_t *data)
 
         ci_debug_printf(5, "rebuild_scanned\n");
 
-        /* we can not disinfect encoded files yet
-           nor files which partialy sent back to client*/
-        // if (data->body.decoded || ci_req_sent_data(req))
-            // data->virus_info.disinfected = 0;
-
-        // if (!scan_status) {
-            // ci_stat_uint64_inc(AV_SCAN_FAILURES, 1);
-            // ci_debug_printf(1, "Failed to scan web object\n");
-            // /* We need to inform the caller proxy for the error,
-               // to give the opportunity to stop using this broken
-               // icap service.
-             // */
-            // if (!PASSONERROR)
-                // return CI_ERROR;
-        // }
-
-        //  build_reply_headers(req, &data->virus_info);
-
-        ci_stat_uint64_inc(AV_SCAN_REQS, 1);
-        ci_stat_kbs_inc(AV_SCAN_BYTES, (int)gw_body_data_size(&data->body));
+        ci_stat_uint64_inc(GW_SCAN_REQS, 1);
+        ci_stat_kbs_inc(GW_SCAN_BYTES, (int)gw_body_data_size(&data->body));
     }
     return CI_OK;
 }
 
-
-
 /*******************************************************************************/
 /* Other  functions                                                            */
-
-
 
 void set_istag(ci_service_xdata_t *srv_xdata)
 {
      ci_service_set_istag(srv_xdata, SDK_VERSION);
+}
+
+int get_filetype(ci_request_t *req, int *iscompressed)
+{
+    int filetype;
+    /*Use the ci_magic_req_data_type which caches the result*/
+    filetype = ci_magic_req_data_type(req, iscompressed);
+    return filetype;
 }
 
 static int init_body_data(ci_request_t *req)
@@ -678,6 +653,47 @@ static int init_body_data(ci_request_t *req)
     return CI_OK;
 }
 
+int must_scanned(ci_request_t *req, char *preview_data, int preview_data_len)
+{
+    int type, i;
+    int *file_groups;
+    const struct gw_file_types *configured_file_types = &SCAN_FILE_TYPES;
+    gw_test_req_data_t *data  = ci_service_data(req);
+    int file_type = get_filetype(req, &data->encoded);
+
+     /*By default do not scan*/
+     type = NO_SCAN;  
+     
+    if (preview_data_len == 0 || file_type < 0) {
+        if (ci_http_request_url(req, data->url_log, LOG_URL_SIZE) <= 0)
+            strcpy(data->url_log, "-");
+
+        ci_debug_printf(1, "WARNING! %s, can not get required info to scan url: %s\n",
+             (preview_data_len == 0? "No preview data" : "Error computing file type"),
+             data->url_log);
+    }
+    else
+    {
+        file_groups = ci_data_type_groups(magic_db, file_type);
+        i = 0;
+        if (file_groups) {
+            while ( i < MAX_GROUPS && file_groups[i] >= 0) {
+                assert(file_groups[i] < ci_magic_groups_num(magic_db));
+                if ((type = configured_file_types->scangroups[file_groups[i]]) > 0)                    
+                    break;
+                i++;
+            }
+        }
+
+        if (type == NO_SCAN) {
+            assert(file_type < ci_magic_types_num(magic_db));
+            type = configured_file_types->scantypes[file_type];
+        }        
+    }
+    return type;
+}
+
+
 void generate_error_page(gw_test_req_data_t *data, ci_request_t *req)
 {
     ci_membuf_t *error_page;
@@ -694,7 +710,7 @@ void generate_error_page(gw_test_req_data_t *data, ci_request_t *req)
     ci_http_response_add_header(req, "Content-Type: text/html");
 
     error_page = ci_txt_template_build_content(req, "gw_test", "POLICY_ISSUE",
-                           virus_scan_format_table);
+                           gw_test_report_format_table);
 
     lang = ci_membuf_attr_get(error_page, "lang");
     if (lang) {
@@ -708,7 +724,7 @@ void generate_error_page(gw_test_req_data_t *data, ci_request_t *req)
     data->error_page = error_page;
 }
 
-int av_file_types_init( struct av_file_types *ftypes)
+int gw_file_types_init( struct gw_file_types *ftypes)
 {
     int i;
     ftypes->scantypes = (int *) malloc(ci_magic_types_num(magic_db) * sizeof(int));
@@ -724,7 +740,7 @@ int av_file_types_init( struct av_file_types *ftypes)
     return 1;
 }
 
-void av_file_types_destroy( struct av_file_types *ftypes)
+void gw_file_types_destroy( struct gw_file_types *ftypes)
 {
     free(ftypes->scantypes);
     ftypes->scantypes = NULL;
@@ -741,9 +757,9 @@ static void cmd_reload_istag(const char *name, int type, void *data)
 
 /***************************************************************************************/
 /* Parse arguments function -
-   Current arguments: allow204=on|off, force=on, sizelimit=off, mode=simple|vir|mixed
+   Current arguments: allow204=on|off, sizelimit=off
 */
-void virus_scan_parse_args(gw_test_req_data_t *data, char *args)
+void gw_test_parse_args(gw_test_req_data_t *data, char *args)
 {
      char *str;
      if ((str = strstr(args, "allow204="))) {
@@ -752,24 +768,12 @@ void virus_scan_parse_args(gw_test_req_data_t *data, char *args)
           else if (strncmp(str + 9, "off", 3) == 0)
                data->args.enable204 = 0;
      }
-     if ((str = strstr(args, "force="))) {
-          if (strncmp(str + 6, "on", 2) == 0)
-               data->args.forcescan = 1;
-     }
+
      if ((str = strstr(args, "sizelimit="))) {
           if (strncmp(str + 10, "off", 3) == 0)
                data->args.sizelimit = 0;
      }
-     if ((str = strstr(args, "mode="))) {
-          if (strncmp(str + 5, "simple", 6) == 0)
-               data->args.mode = 1;
-          else if (strncmp(str + 5, "vir", 3) == 0)
-               data->args.mode = 2;
-          else if (strncmp(str + 5, "mixed", 5) == 0)
-               data->args.mode = 3;
-          else if (strncmp(str + 5, "streamed", 8) == 0)
-               data->args.mode = 4;
-     }
+
 }
 
 void rebuild_content_length(ci_request_t *req, gw_body_data_t *bd)
@@ -802,45 +806,45 @@ void rebuild_content_length(ci_request_t *req, gw_body_data_t *bd)
 /****************************************************************************************/
 /*Configuration Functions                                                               */
 
-int cfg_SendPercentData(const char *directive, const char **argv, void *setdata)
+int cfg_ScanFileTypes(const char *directive, const char **argv, void *setdata)
 {
-     int val = 0;
-     char *end;
-     if (argv == NULL || argv[0] == NULL) {
-          ci_debug_printf(1, "Missing arguments in directive %s \n", directive);
+     int i, id;
+     int type = NO_SCAN;
+     struct gw_file_types *ftypes = (struct gw_file_types *)setdata;
+     if (!ftypes)
+         return 0;
+
+     if (strcmp(directive, "ScanFileTypes") == 0)
+          type = SCAN;
+     else
           return 0;
-     }
-     errno = 0;
-     val = strtoll(argv[0], &end, 10);
-     if (errno != 0 || val < 0 || val > 100) {
-          ci_debug_printf(1, "Invalid argument in directive %s \n", directive);
-          return 0;
+
+     for (i = 0; argv[i] != NULL; i++) {
+          if ((id = ci_get_data_type_id(magic_db, argv[i])) >= 0)
+               ftypes->scantypes[id] = type;
+          else if ((id = ci_get_data_group_id(magic_db, argv[i])) >= 0)
+               ftypes->scangroups[id] = type;
+          else
+               ci_debug_printf(1, "Unknown data type %s \n", argv[i]);
+
      }
 
-     *((int *) setdata) = val;
-     ci_debug_printf(2, "Setting parameter: %s=%d\n", directive, val);
+     ci_debug_printf(2, "scan data for %s scanning of type: ",
+                     (type == 1 ? "simple" : "vir_mode"));
+     for (i = 0; i < ci_magic_types_num(magic_db); i++) {
+          if (ftypes->scantypes[i] == type)
+               ci_debug_printf(2, ",%s", ci_data_type_name(magic_db, i));
+     }
+     for (i = 0; i < ci_magic_groups_num(magic_db); i++) {
+          if (ftypes->scangroups[i] == type)
+               ci_debug_printf(2, ",%s", ci_data_group_name(magic_db, i));
+     }
+     ci_debug_printf(1, "\n");
      return 1;
 }
 
-int cfg_av_set_str_vector(const char *directive, const char **argv, void *setdata)
-{
-    int i;
-    ci_str_vector_t **v = (ci_str_vector_t **) setdata;
-    if (*v == NULL)
-        *v = ci_str_vector_create(4096);
-    for (i = 0; argv[i] != NULL; i++)
-        (void)ci_str_vector_add(*v, argv[i]);
-
-    if (i > 0)
-        return 1;
-
-    return 0;
-}
-
 /**************************************************************/
-/* virus_scan templates  formating table                      */
-
-
+/* gw_test templates  formating table                         */
 
 int fmt_gw_test_http_url(ci_request_t *req, char *buf, int len, const char *param)
 {
@@ -850,8 +854,8 @@ int fmt_gw_test_http_url(ci_request_t *req, char *buf, int len, const char *para
 
 static int fmt_gw_test_error_code(ci_request_t *req, char *buf, int len, const char *param)
 {
-     gw_test_req_data_t *data = ci_service_data(req);
-     return snprintf(buf, len, "%d", data->gw_status);
+    gw_test_req_data_t *data = ci_service_data(req);
+    return snprintf(buf, len, "%d", data->gw_status);
 }
 
 void init_gw_sdk()
