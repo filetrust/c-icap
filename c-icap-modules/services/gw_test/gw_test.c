@@ -42,10 +42,10 @@ static struct gw_file_types SCAN_FILE_TYPES = {NULL, NULL};
 char* SDK_VERSION;
 
 /*Statistic  Ids*/
-static int AV_SCAN_REQS = -1;
-static int AV_SCAN_BYTES = -1;
-static int AV_VIRUSES_FOUND = -1;
-static int AV_SCAN_FAILURES = -1;
+static int GW_SCAN_REQS = -1;
+static int GW_SCAN_BYTES = -1;
+static int GW_ISSUES_FOUND = -1;
+static int GW_SCAN_FAILURES = -1;
 
 /*********************/
 /* Formating table   */
@@ -102,7 +102,7 @@ static struct ci_conf_entry conf_variables[] = {
 CI_DECLARE_MOD_DATA ci_service_module_t service = {
      "gw_test",              /*Module name */
      "Glasswall Test service",        /*Module short description */
-     ICAP_RESPMOD | ICAP_REQMOD,        /*Service type responce or request modification */
+     ICAP_RESPMOD | ICAP_REQMOD,        /*Service type response or request modification */
      gw_test_init_service,    /*init_service. */
      gw_test_post_init_service,   /*post_init_service. */
      gw_test_close_service,   /*close_service */
@@ -130,7 +130,6 @@ int gw_test_init_service(ci_service_xdata_t *srv_xdata,
      magic_db = server_conf->MAGIC_DB;
      gw_file_types_init(&SCAN_FILE_TYPES);
 
-     ci_debug_printf(5, "Going to initialize gw_test\n");
      gw_test_xdata = srv_xdata;      /*Needed by db_reload command */
      ci_service_set_preview(srv_xdata, 1024);
      ci_service_enable_204(srv_xdata);
@@ -147,10 +146,10 @@ int gw_test_init_service(ci_service_xdata_t *srv_xdata,
      /*initialize statistic counters*/
      /* TODO:convert to const after fix ci_stat_* api*/
      char *stats_label = "Service gw_test";
-     AV_SCAN_REQS = ci_stat_entry_register("Requests scanned", STAT_INT64_T, stats_label);
-     AV_SCAN_BYTES = ci_stat_entry_register("Body bytes scanned", STAT_KBS_T, stats_label);
-     AV_VIRUSES_FOUND = ci_stat_entry_register("Viruses found", STAT_INT64_T, stats_label);
-     AV_SCAN_FAILURES = ci_stat_entry_register("Scan failures", STAT_INT64_T, stats_label);
+     GW_SCAN_REQS = ci_stat_entry_register("Requests scanned", STAT_INT64_T, stats_label);
+     GW_SCAN_BYTES = ci_stat_entry_register("Body bytes scanned", STAT_KBS_T, stats_label);
+     GW_ISSUES_FOUND = ci_stat_entry_register("Issues found", STAT_INT64_T, stats_label);
+     GW_SCAN_FAILURES = ci_stat_entry_register("Scan failures", STAT_INT64_T, stats_label);
 
      return CI_OK;
 }
@@ -494,13 +493,12 @@ static int handle_deflated(gw_test_req_data_t *data)
 #else
         err = ci_inflate_error(ret);
 #endif
-        ci_stat_uint64_inc(AV_SCAN_FAILURES, 1);
+        ci_stat_uint64_inc(GW_SCAN_FAILURES, 1);
         if (PASSONERROR) {
             ci_debug_printf(1, "Unable to uncompress deflate encoded data: %s! Let it pass due to PassOnError\n", err);
             return 1;
         }
 
-        /*virus_scan_inflate_error always return a no null description*/
         ci_debug_printf(1, "Unable to uncompress deflate encoded data: %s! Handle object as infected\n", err);
     }
     return 0;
@@ -514,13 +512,11 @@ static int rebuild_scan(ci_request_t *req, gw_test_req_data_t *data)
         /*TODO Must check for errors*/
         ci_debug_printf(5, "rebuild_scan\n");
         if (data->body.decoded){
-            //scan_status = data->engine[i]->scan_simple_file(data->body.decoded, &data->virus_info);
-            ci_debug_printf(5, "rebuild_scan: decoded\n")
+            ci_debug_printf(2, "rebuild_scan: decoded, no processing\n")
             data->gw_processing = GW_PROCESSING_NONE;
             return CI_OK;
         }
 
-        // Initialise the library with the content management policyl
         int returnStatus;
 
         data->gw_processing = GW_PROCESSING_SCANNED;
@@ -568,7 +564,6 @@ static int rebuild_scan(ci_request_t *req, gw_test_req_data_t *data)
                 data->gw_processing = GW_PROCESSING_NONE;
                 return CI_OK;
             }
-
         }
         else{
             ci_debug_printf(5, "rebuild_scan: GW_BT_MEM\n");
@@ -608,8 +603,8 @@ static int rebuild_scan(ci_request_t *req, gw_test_req_data_t *data)
 
         ci_debug_printf(5, "rebuild_scanned\n");
 
-        ci_stat_uint64_inc(AV_SCAN_REQS, 1);
-        ci_stat_kbs_inc(AV_SCAN_BYTES, (int)gw_body_data_size(&data->body));
+        ci_stat_uint64_inc(GW_SCAN_REQS, 1);
+        ci_stat_kbs_inc(GW_SCAN_BYTES, (int)gw_body_data_size(&data->body));
     }
     return CI_OK;
 }
@@ -849,9 +844,7 @@ int cfg_ScanFileTypes(const char *directive, const char **argv, void *setdata)
 }
 
 /**************************************************************/
-/* virus_scan templates  formating table                      */
-
-
+/* gw_test templates  formating table                         */
 
 int fmt_gw_test_http_url(ci_request_t *req, char *buf, int len, const char *param)
 {
@@ -861,8 +854,8 @@ int fmt_gw_test_http_url(ci_request_t *req, char *buf, int len, const char *para
 
 static int fmt_gw_test_error_code(ci_request_t *req, char *buf, int len, const char *param)
 {
-     gw_test_req_data_t *data = ci_service_data(req);
-     return snprintf(buf, len, "%d", data->gw_status);
+    gw_test_req_data_t *data = ci_service_data(req);
+    return snprintf(buf, len, "%d", data->gw_status);
 }
 
 void init_gw_sdk()
