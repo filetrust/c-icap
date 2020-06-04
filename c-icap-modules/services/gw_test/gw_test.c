@@ -102,11 +102,10 @@ static int init_body_data(ci_request_t *req);
 /*Configuration Table .....*/
 static struct ci_conf_entry conf_variables[] = {
      {"MaxObjectSize", &MAX_OBJECT_SIZE, ci_cfg_size_off, NULL},
-     {"Allow204Responces", &ALLOW204, ci_cfg_onoff, NULL},
+     {"Allow204Responses", &ALLOW204, ci_cfg_onoff, NULL},
      {"PassOnError", &PASSONERROR, ci_cfg_onoff, NULL},
      {"DataCleanup", &DATA_CLEANUP, ci_cfg_onoff, NULL},
 };
-
 
 CI_DECLARE_MOD_DATA ci_service_module_t service = {
      "gw_test",              /*Module name */
@@ -402,9 +401,12 @@ int gw_test_end_of_data_handler(ci_request_t *req)
             ci_debug_printf(5, "gw_test_end_of_data_handler GW_PROCESSING_SCANNED\n");
             rebuild_content_length(req, &data->body);
         } else if (data->gw_processing == GW_PROCESSING_NONE){
-            ci_request_set_str_attribute(req,"gw_test:action", "none");
-            ci_debug_printf(5, "gw_test_end_of_data_handler GW_PROCESSING_NONE\n");
-            return CI_MOD_ALLOW204;
+            if (data->allow204 && !ci_req_sent_data(req)) {
+                ci_request_set_str_attribute(req,"gw_test:action", "none");
+                ci_debug_printf(5, "gw_test_end_of_data_handler GW_PROCESSING_NONE\n");
+                return CI_MOD_ALLOW204;
+            } 
+            ci_debug_printf(5, "gw_test_end_of_data_handler GW_PROCESSING_NONE done\n");
         } else {
             ci_debug_printf(1, "Unexpected gw_processing status %d\n", data->gw_processing);
         }
@@ -413,11 +415,13 @@ int gw_test_end_of_data_handler(ci_request_t *req)
           ci_request_set_str_attribute(req,"virus_scan:action", "blocked");
           ci_debug_printf(5, "gw_test_end_of_data_handler eGwFileStatus_Error\n");
     } else{
-        if (data->gw_processing == GW_PROCESSING_NONE)
-        {
-            ci_request_set_str_attribute(req,"gw_test:action", "none");
-            ci_debug_printf(5, "gw_test_end_of_data_handler GW_PROCESSING_NONE\n");
-            return CI_MOD_ALLOW204;            
+        if (data->gw_processing == GW_PROCESSING_NONE){
+            if (data->allow204 && !ci_req_sent_data(req)) {
+                ci_request_set_str_attribute(req,"gw_test:action", "none");
+                ci_debug_printf(5, "gw_test_end_of_data_handler GW_PROCESSING_NONE\n");
+                return CI_MOD_ALLOW204;            
+            } 
+            ci_debug_printf(5, "gw_test_end_of_data_handler GW_PROCESSING_NONE done\n");
         }
         else{
             generate_error_page(data, req);
