@@ -15,7 +15,7 @@ enum {NO_DECISION = -1, NO_SCAN=0,SCAN};
 /* Used to define the gw_processing content */
 enum {GW_PROCESSING_UNDEFINED = -1, GW_PROCESSING_NONE=0, GW_PROCESSING_SCANNED};
 
-struct av_file_types {
+struct gw_file_types {
     int *scantypes;
     int *scangroups;
 };
@@ -43,7 +43,7 @@ typedef struct gw_test_req_data {
 } gw_test_req_data_t;
 
 /*File types related functions*/
-int av_file_types_init( struct av_file_types *ftypes);
-void av_file_types_destroy( struct av_file_types *ftypes);
+int gw_file_types_init( struct gw_file_types *ftypes);
+void gw_file_types_destroy( struct gw_file_types *ftypes);
 
 #endif
