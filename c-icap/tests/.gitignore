@@ -4,5 +4,9 @@
 # Unignore all with extensions
 !*/
 
-# Unignore all dirs
-!*.*
+# Temporary Build Files
+Makefile.in
+
+# Object files
+*.o
+
