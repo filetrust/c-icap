@@ -1,0 +1,8 @@
+# To avoid temporary wrappers scripts from being included into Git
+# Ignore all
+*
+# Unignore all with extensions
+!*/
+
+# Unignore all dirs
+!*.*
