@@ -19,6 +19,11 @@
 #include <errno.h>
 #include <assert.h>
 #include <locale.h>
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <unistd.h>
+#include <errno.h>
+#include <stdlib.h>
 
 void generate_error_page(gw_rebuild_req_data_t *data, ci_request_t *req);
 static void rebuild_content_length(ci_request_t *req, gw_body_data_t *body);
@@ -596,8 +601,46 @@ void gw_rebuild_parse_args(gw_rebuild_req_data_t *data, char *args)
 
 }
 
+static int exec_prog(const char **argv);
 int call_proxy_application(ci_request_t *req, gw_rebuild_req_data_t *data)
 {
+    char* input = "input path";
+    char* output = "output path";
+    const char* args[4] = {PROXY_APP_LOCATION, input, output, NULL};
+
+    return exec_prog(args);  
+}
+
+/* First array item is path to executable, last array item is null. Program arguments are intermediate array elements*/
+static int exec_prog(const char **argv)
+{
+    pid_t   my_pid;
+    int     status, timeout;
+
+    if (0 == (my_pid = fork())) {
+        if (-1 == execve(argv[0], (char **)argv , NULL)) {
+            ci_debug_printf(1, "child process execve failed for %s (%d)", argv[0], my_pid);
+            return CI_ERROR;
+        }
+    }
+    timeout = 1000;
+
+    while (0 == waitpid(my_pid , &status , WNOHANG)) {
+        if ( --timeout < 0 ) {
+            ci_debug_printf(1, "Unexpected running Proxy application (%d)\n", my_pid);
+            return CI_ERROR;
+        }
+        sleep(1);
+    }
+
+    ci_debug_printf(8, "%s PID %d WEXITSTATUS %d WIFEXITED %d [status %d]\n",
+            argv[0], my_pid, WEXITSTATUS(status), WIFEXITED(status), status);
+
+    if (1 != WIFEXITED(status) || 0 != WEXITSTATUS(status)) {
+        ci_debug_printf(1, "Unexpected error running Proxy application (%d)\n", status);
+            return CI_ERROR;
+    }
+
     return CI_OK;
 }
 
