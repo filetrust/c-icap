@@ -1,11 +1,11 @@
-#ifndef gw_test_h
-#define gw_test_h
+#ifndef gw_rebuild_h
+#define gw_rebuild_h
 
 #include "gw_body.h"
 
 #define LOG_URL_SIZE 256
 
-#define GW_RELOAD_ISTAG     "gw_test::reloadistag"
+#define GW_RELOAD_ISTAG     "gw_rebuild::reloadistag"
 
 /* Used to initialise gw_status */
 #define GW_STATUS_UNDEFINED 99
@@ -20,7 +20,7 @@ struct gw_file_types {
     int *scangroups;
 };
 
-typedef struct gw_test_req_data {
+typedef struct gw_rebuild_req_data {
     struct gw_body_data body;
     ci_request_t *req;
     int must_scanned ;
@@ -40,7 +40,7 @@ typedef struct gw_test_req_data {
     int send_percent_bytes;
     ci_off_t start_send_after;
     int encoded;
-} gw_test_req_data_t;
+} gw_rebuild_req_data_t;
 
 /*File types related functions*/
 int gw_file_types_init( struct gw_file_types *ftypes);

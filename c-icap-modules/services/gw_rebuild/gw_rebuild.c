@@ -20,7 +20,7 @@
 #include <assert.h>
 #include <locale.h>
 
-void generate_error_page(gw_test_req_data_t *data, ci_request_t *req);
+void generate_error_page(gw_rebuild_req_data_t *data, ci_request_t *req);
 static void rebuild_content_length(ci_request_t *req, gw_body_data_t *body);
 /***********************************************************************************/
 /* Module definitions                                                              */
@@ -44,32 +44,32 @@ static int GW_SCAN_FAILURES = -1;
 
 /*********************/
 /* Formating table   */
-static int fmt_gw_test_http_url(ci_request_t *req, char *buf, int len, const char *param);
-static int fmt_gw_test_error_code(ci_request_t *req, char *buf, int len, const char *param);
+static int fmt_gw_rebuild_http_url(ci_request_t *req, char *buf, int len, const char *param);
+static int fmt_gw_rebuild_error_code(ci_request_t *req, char *buf, int len, const char *param);
 
-struct ci_fmt_entry gw_test_report_format_table [] = {
-    {"%GU", "The HTTP url", fmt_gw_test_http_url},
-    {"%GE", "The Error code", fmt_gw_test_error_code},
+struct ci_fmt_entry gw_rebuild_report_format_table [] = {
+    {"%GU", "The HTTP url", fmt_gw_rebuild_http_url},
+    {"%GE", "The Error code", fmt_gw_rebuild_error_code},
     { NULL, NULL, NULL}
 };
 
 static int GWREQDATA_POOL = -1;
 
-static int gw_test_init_service(ci_service_xdata_t *srv_xdata,
+static int gw_rebuild_init_service(ci_service_xdata_t *srv_xdata,
                            struct ci_server_conf *server_conf);
-static int gw_test_post_init_service(ci_service_xdata_t *srv_xdata,
+static int gw_rebuild_post_init_service(ci_service_xdata_t *srv_xdata,
                            struct ci_server_conf *server_conf);
-static void gw_test_close_service();
-static int gw_test_check_preview_handler(char *preview_data, int preview_data_len,
+static void gw_rebuild_close_service();
+static int gw_rebuild_check_preview_handler(char *preview_data, int preview_data_len,
                                     ci_request_t *);
-static int gw_test_end_of_data_handler(ci_request_t *);
-static void *gw_test_init_request_data(ci_request_t *req);
-static void gw_test_release_request_data(void *srv_data);
-static int gw_test_io(char *wbuf, int *wlen, char *rbuf, int *rlen, int iseof,
+static int gw_rebuild_end_of_data_handler(ci_request_t *);
+static void *gw_rebuild_init_request_data(ci_request_t *req);
+static void gw_rebuild_release_request_data(void *srv_data);
+static int gw_rebuild_io(char *wbuf, int *wlen, char *rbuf, int *rlen, int iseof,
                  ci_request_t *req);
 
 /*Arguments parse*/
-static void gw_test_parse_args(gw_test_req_data_t *data, char *args);
+static void gw_rebuild_parse_args(gw_rebuild_req_data_t *data, char *args);
 /*Configuration Functions*/
 int cfg_ScanFileTypes(const char *directive, const char **argv, void *setdata);
 
@@ -90,22 +90,22 @@ CI_DECLARE_MOD_DATA ci_service_module_t service = {
     "gw_rebuild",              /*Module name */
     "Glasswall Rebuild service",        /*Module short description */
     ICAP_RESPMOD | ICAP_REQMOD,        /*Service type response or request modification */
-    gw_test_init_service,    /*init_service. */
-    gw_test_post_init_service,   /*post_init_service. */
-    gw_test_close_service,   /*close_service */
-    gw_test_init_request_data,       /*init_request_data. */
-    gw_test_release_request_data,    /*release request data */
-    gw_test_check_preview_handler,
-    gw_test_end_of_data_handler,
-    gw_test_io,
+    gw_rebuild_init_service,    /*init_service. */
+    gw_rebuild_post_init_service,   /*post_init_service. */
+    gw_rebuild_close_service,   /*close_service */
+    gw_rebuild_init_request_data,       /*init_request_data. */
+    gw_rebuild_release_request_data,    /*release request data */
+    gw_rebuild_check_preview_handler,
+    gw_rebuild_end_of_data_handler,
+    gw_rebuild_io,
     conf_variables,
     NULL
 };
 
-int gw_test_init_service(ci_service_xdata_t *srv_xdata,
+int gw_rebuild_init_service(ci_service_xdata_t *srv_xdata,
                            struct ci_server_conf *server_conf)
 {
-    ci_debug_printf(3, "gw_test_init_service......\n");
+    ci_debug_printf(3, "gw_rebuild_init_service......\n");
     
     magic_db = server_conf->MAGIC_DB;
     gw_file_types_init(&SCAN_FILE_TYPES);
@@ -115,16 +115,16 @@ int gw_test_init_service(ci_service_xdata_t *srv_xdata,
     ci_service_set_transfer_preview(srv_xdata, "*");
 
     /*Initialize object pools*/
-    GWREQDATA_POOL = ci_object_pool_register("gw_test_req_data_t", sizeof(gw_test_req_data_t));
+    GWREQDATA_POOL = ci_object_pool_register("gw_rebuild_req_data_t", sizeof(gw_rebuild_req_data_t));
 
     if(GWREQDATA_POOL < 0) {
-        ci_debug_printf(1, " gw_test_init_service: error registering object_pool gw_test_req_data_t\n");
+        ci_debug_printf(1, " gw_rebuild_init_service: error registering object_pool gw_rebuild_req_data_t\n");
         return CI_ERROR;
     }
 
     /*initialize statistic counters*/
     /* TODO:convert to const after fix ci_stat_* api*/
-    char *stats_label = "Service gw_test";
+    char *stats_label = "Service gw_rebuild";
     GW_SCAN_REQS = ci_stat_entry_register("Requests scanned", STAT_INT64_T, stats_label);
     GW_SCAN_BYTES = ci_stat_entry_register("Body bytes scanned", STAT_KBS_T, stats_label);
     GW_ISSUES_FOUND = ci_stat_entry_register("Issues found", STAT_INT64_T, stats_label);
@@ -132,10 +132,10 @@ int gw_test_init_service(ci_service_xdata_t *srv_xdata,
     return CI_OK;
 }
 
-int gw_test_post_init_service(ci_service_xdata_t *srv_xdata,
+int gw_rebuild_post_init_service(ci_service_xdata_t *srv_xdata,
                            struct ci_server_conf *server_conf)
 {
-    ci_debug_printf(3, "gw_test_post_init_service......\n");
+    ci_debug_printf(3, "gw_rebuild_post_init_service......\n");
     
     if (!PROXY_APP_LOCATION)
        ci_debug_printf(1, "Proxy App location not specified\n");
@@ -145,19 +145,19 @@ int gw_test_post_init_service(ci_service_xdata_t *srv_xdata,
     return CI_OK;
 }
 
-void gw_test_close_service()
+void gw_rebuild_close_service()
 {
-    ci_debug_printf(3, "gw_test_close_service......\n");
+    ci_debug_printf(3, "gw_rebuild_close_service......\n");
     gw_file_types_destroy(&SCAN_FILE_TYPES);
     ci_object_pool_unregister(GWREQDATA_POOL);
 }
 
-void *gw_test_init_request_data(ci_request_t *req)
+void *gw_rebuild_init_request_data(ci_request_t *req)
 {
     int preview_size;
-    gw_test_req_data_t *data;
+    gw_rebuild_req_data_t *data;
 
-    ci_debug_printf(3, "gw_test_init_request_data......\n");
+    ci_debug_printf(3, "gw_rebuild_init_request_data......\n");
 
      preview_size = ci_req_preview_size(req);
 
@@ -186,7 +186,7 @@ void *gw_test_init_request_data(ci_request_t *req)
 
         if (req->args[0] != '\0') {
             ci_debug_printf(5, "service arguments:%s\n", req->args);
-            gw_test_parse_args(data, req->args);
+            gw_rebuild_parse_args(data, req->args);
         }
         if (data->args.enable204 && ci_allow204(req))
             data->allow204 = 1;
@@ -199,11 +199,11 @@ void *gw_test_init_request_data(ci_request_t *req)
     return NULL;
 }
 
-void gw_test_release_request_data(void *data)
+void gw_rebuild_release_request_data(void *data)
 {
     if (data) {
-        ci_debug_printf(3, "Releasing gw_test data.....\n");
-        gw_test_req_data_t *requestData = (gw_test_req_data_t *) data;
+        ci_debug_printf(3, "Releasing gw_rebuild data.....\n");
+        gw_rebuild_req_data_t *requestData = (gw_rebuild_req_data_t *) data;
         if (DATA_CLEANUP)
         {            
             gw_body_data_destroy(&requestData->body);
@@ -213,24 +213,24 @@ void gw_test_release_request_data(void *data)
             if (requestData->body.type == GW_BT_MEM)
                 gw_body_data_destroy(&requestData->body);
             else
-                ci_debug_printf(3, "Leaving gw_test data body.....\n");
+                ci_debug_printf(3, "Leaving gw_rebuild data body.....\n");
         }
 
-        if (((gw_test_req_data_t *) data)->error_page)
-            ci_membuf_free(((gw_test_req_data_t *) data)->error_page);
+        if (((gw_rebuild_req_data_t *) data)->error_page)
+            ci_membuf_free(((gw_rebuild_req_data_t *) data)->error_page);
 
         ci_object_pool_free(data);
      }
 }
 static int must_scanned(ci_request_t *req, char *preview_data, int preview_data_len);
-int gw_test_check_preview_handler(char *preview_data, int preview_data_len,
+int gw_rebuild_check_preview_handler(char *preview_data, int preview_data_len,
                                     ci_request_t *req)
 {
      ci_off_t content_size = 0;
 
-     gw_test_req_data_t *data = ci_service_data(req);
+     gw_rebuild_req_data_t *data = ci_service_data(req);
 
-     ci_debug_printf(3, "gw_test_check_preview_handler; preview data size is %d\n", preview_data_len);
+     ci_debug_printf(3, "gw_rebuild_check_preview_handler; preview data size is %d\n", preview_data_len);
 
      if (!data || !ci_req_hasbody(req)){
         ci_debug_printf(6, "No body data, allow 204\n");
@@ -242,7 +242,7 @@ int gw_test_check_preview_handler(char *preview_data, int preview_data_len,
     /*Compute the expected size, will be used by must_scanned*/
     content_size = ci_http_content_length(req);
     data->expected_size = content_size;
-    ci_debug_printf(6, "gw_test_check_preview_handler: expected_size is %ld\n", content_size);
+    ci_debug_printf(6, "gw_rebuild_check_preview_handler: expected_size is %ld\n", content_size);
 
     /*log objects url*/
     if (!ci_http_request_url(req, data->url_log, LOG_URL_SIZE)) {
@@ -266,17 +266,17 @@ int gw_test_check_preview_handler(char *preview_data, int preview_data_len,
                                 ci_req_hasalldata(req)) == CI_ERROR)
         return CI_ERROR;
     }
-    ci_debug_printf(6, "gw_test_check_preview_handler: gw_body_data_write data_len %d\n", preview_data_len);
+    ci_debug_printf(6, "gw_rebuild_check_preview_handler: gw_body_data_write data_len %d\n", preview_data_len);
 
     return CI_MOD_CONTINUE;
 }
 
-int gw_test_write_to_net(char *buf, int len, ci_request_t *req)
+int gw_rebuild_write_to_net(char *buf, int len, ci_request_t *req)
 {
-    ci_debug_printf(9, "gw_test_write_to_net; buf len is %d\n", len);
+    ci_debug_printf(9, "gw_rebuild_write_to_net; buf len is %d\n", len);
 
     int bytes;
-    gw_test_req_data_t *data = ci_service_data(req);
+    gw_rebuild_req_data_t *data = ci_service_data(req);
     if (!data)
         return CI_ERROR;
 
@@ -285,18 +285,18 @@ int gw_test_write_to_net(char *buf, int len, ci_request_t *req)
     else
         bytes =0;
 
-    ci_debug_printf(9, "gw_test_write_to_net; write bytes is %d\n", bytes);
+    ci_debug_printf(9, "gw_rebuild_write_to_net; write bytes is %d\n", bytes);
 
     return bytes;
 }
 
-int gw_test_read_from_net(char *buf, int len, int iseof, ci_request_t *req)
+int gw_rebuild_read_from_net(char *buf, int len, int iseof, ci_request_t *req)
 {
-    ci_debug_printf(7, "gw_test_read_from_net; buf len is %d, iseof is %d\n", len, iseof);
+    ci_debug_printf(7, "gw_rebuild_read_from_net; buf len is %d, iseof is %d\n", len, iseof);
 
      //int ret;
     // int allow_transfer;
-     gw_test_req_data_t *data = ci_service_data(req);
+     gw_rebuild_req_data_t *data = ci_service_data(req);
      if (!data)
           return CI_ERROR;
 
@@ -310,17 +310,17 @@ int gw_test_read_from_net(char *buf, int len, int iseof, ci_request_t *req)
         /*TODO: Raise an error report rather than just raise an error */
         return CI_ERROR;
      } 
-     ci_debug_printf(8, "gw_test_read_from_net:Writing to data->body, %d bytes \n", len);
+     ci_debug_printf(8, "gw_rebuild_read_from_net:Writing to data->body, %d bytes \n", len);
 
      return gw_body_data_write(&data->body, buf, len, iseof);
 }
 
-int gw_test_io(char *wbuf, int *wlen, char *rbuf, int *rlen, int iseof, ci_request_t *req)
+int gw_rebuild_io(char *wbuf, int *wlen, char *rbuf, int *rlen, int iseof, ci_request_t *req)
 {
     char printBuffer[100];
     char tempBuffer[20];
     printBuffer[0] = '\0';
-    strcat(printBuffer, "gw_test_io, ");
+    strcat(printBuffer, "gw_rebuild_io, ");
 
     if (wlen) {
         sprintf(tempBuffer, "wlen=%d, ", *wlen);
@@ -335,27 +335,27 @@ int gw_test_io(char *wbuf, int *wlen, char *rbuf, int *rlen, int iseof, ci_reque
     ci_debug_printf(9, "%s", printBuffer);
 
      if (rbuf && rlen) {
-          *rlen = gw_test_read_from_net(rbuf, *rlen, iseof, req);
+          *rlen = gw_rebuild_read_from_net(rbuf, *rlen, iseof, req);
       if (*rlen == CI_ERROR)
            return CI_ERROR;
           /*else if (*rlen < 0) ignore*/
      }
      else if (iseof) {
-     if (gw_test_read_from_net(NULL, 0, iseof, req) == CI_ERROR)
+     if (gw_rebuild_read_from_net(NULL, 0, iseof, req) == CI_ERROR)
          return CI_ERROR;
      }
 
      if (wbuf && wlen) {
-          *wlen = gw_test_write_to_net(wbuf, *wlen, req);
+          *wlen = gw_rebuild_write_to_net(wbuf, *wlen, req);
      }
      return CI_OK;
 }
 
-int gw_test_end_of_data_handler(ci_request_t *req)
+int gw_rebuild_end_of_data_handler(ci_request_t *req)
 {
-    ci_debug_printf(3, "gw_test_end_of_data_handler\n");
+    ci_debug_printf(3, "gw_rebuild_end_of_data_handler\n");
 
-    gw_test_req_data_t *data = ci_service_data(req);
+    gw_rebuild_req_data_t *data = ci_service_data(req);
 
     if (!data || data->body.type == GW_BT_NONE){
         data->gw_processing = GW_PROCESSING_NONE;
@@ -382,7 +382,7 @@ int gw_test_end_of_data_handler(ci_request_t *req)
     return CI_MOD_DONE;
 }
 
-static int handle_deflated(gw_test_req_data_t *data)
+static int handle_deflated(gw_rebuild_req_data_t *data)
 {
     const char *err = NULL;
     /*
@@ -455,7 +455,7 @@ int get_filetype(ci_request_t *req, int *iscompressed)
 static int init_body_data(ci_request_t *req)
 {
     int scan_from_mem;
-    gw_test_req_data_t *data = ci_service_data(req);
+    gw_rebuild_req_data_t *data = ci_service_data(req);
     assert(data);
 
     scan_from_mem = 1;
@@ -485,7 +485,7 @@ int must_scanned(ci_request_t *req, char *preview_data, int preview_data_len)
     int type, i;
     int *file_groups;
     const struct gw_file_types *configured_file_types = &SCAN_FILE_TYPES;
-    gw_test_req_data_t *data  = ci_service_data(req);
+    gw_rebuild_req_data_t *data  = ci_service_data(req);
     int file_type = get_filetype(req, &data->encoded);
 
      /*By default do not scan*/
@@ -521,7 +521,7 @@ int must_scanned(ci_request_t *req, char *preview_data, int preview_data_len)
 }
 
 
-void generate_error_page(gw_test_req_data_t *data, ci_request_t *req)
+void generate_error_page(gw_rebuild_req_data_t *data, ci_request_t *req)
 {
     ci_membuf_t *error_page;
     char buf[1024];
@@ -536,8 +536,8 @@ void generate_error_page(gw_test_req_data_t *data, ci_request_t *req)
     ci_http_response_add_header(req, "Connection: close");
     ci_http_response_add_header(req, "Content-Type: text/html");
 
-    error_page = ci_txt_template_build_content(req, "gw_test", "POLICY_ISSUE",
-                           gw_test_report_format_table);
+    error_page = ci_txt_template_build_content(req, "gw_rebuild", "POLICY_ISSUE",
+                           gw_rebuild_report_format_table);
 
     lang = ci_membuf_attr_get(error_page, "lang");
     if (lang) {
@@ -579,7 +579,7 @@ void gw_file_types_destroy( struct gw_file_types *ftypes)
 /* Parse arguments function -
    Current arguments: allow204=on|off, sizelimit=off
 */
-void gw_test_parse_args(gw_test_req_data_t *data, char *args)
+void gw_rebuild_parse_args(gw_rebuild_req_data_t *data, char *args)
 {
      char *str;
      if ((str = strstr(args, "allow204="))) {
@@ -664,17 +664,17 @@ int cfg_ScanFileTypes(const char *directive, const char **argv, void *setdata)
 }
 
 /**************************************************************/
-/* gw_test templates  formating table                         */
+/* gw_rebuild templates  formating table                         */
 
-int fmt_gw_test_http_url(ci_request_t *req, char *buf, int len, const char *param)
+int fmt_gw_rebuild_http_url(ci_request_t *req, char *buf, int len, const char *param)
 {
-    gw_test_req_data_t *data = ci_service_data(req);
+    gw_rebuild_req_data_t *data = ci_service_data(req);
     return snprintf(buf, len, "%s", data->url_log);
 }
 
-static int fmt_gw_test_error_code(ci_request_t *req, char *buf, int len, const char *param)
+static int fmt_gw_rebuild_error_code(ci_request_t *req, char *buf, int len, const char *param)
 {
-    gw_test_req_data_t *data = ci_service_data(req);
+    gw_rebuild_req_data_t *data = ci_service_data(req);
     return snprintf(buf, len, "%d", data->gw_status);
 }
 
