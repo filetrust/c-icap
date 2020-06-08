@@ -348,6 +348,7 @@ int gw_rebuild_io(char *wbuf, int *wlen, char *rbuf, int *rlen, int iseof, ci_re
      return CI_OK;
 }
 
+static int call_proxy_application(ci_request_t *req, gw_rebuild_req_data_t *data);
 int gw_rebuild_end_of_data_handler(ci_request_t *req)
 {
     ci_debug_printf(3, "gw_rebuild_end_of_data_handler\n");
@@ -360,6 +361,8 @@ int gw_rebuild_end_of_data_handler(ci_request_t *req)
     }
 
     /* Process the request body here */
+    int return_status = call_proxy_application(req, data);
+    ci_debug_printf(3, "call_proxy_application status= %d\n", return_status);
 
     if (data->error_page)
     {
@@ -591,6 +594,11 @@ void gw_rebuild_parse_args(gw_rebuild_req_data_t *data, char *args)
                data->args.sizelimit = 0;
      }
 
+}
+
+int call_proxy_application(ci_request_t *req, gw_rebuild_req_data_t *data)
+{
+    return CI_OK;
 }
 
 void rebuild_content_length(ci_request_t *req, gw_body_data_t *bd)
