@@ -104,9 +104,7 @@ CI_DECLARE_MOD_DATA ci_service_module_t service = {
 
 int gw_rebuild_init_service(ci_service_xdata_t *srv_xdata,
                            struct ci_server_conf *server_conf)
-{
-    ci_debug_printf(3, "gw_rebuild_init_service......\n");
-    
+{   
     magic_db = server_conf->MAGIC_DB;
     gw_file_types_init(&SCAN_FILE_TYPES);
 
@@ -134,12 +132,11 @@ int gw_rebuild_init_service(ci_service_xdata_t *srv_xdata,
 
 int gw_rebuild_post_init_service(ci_service_xdata_t *srv_xdata,
                            struct ci_server_conf *server_conf)
-{
-    ci_debug_printf(3, "gw_rebuild_post_init_service......\n");
-    
-    if (!PROXY_APP_LOCATION)
+{   
+    if (!PROXY_APP_LOCATION){
        ci_debug_printf(1, "Proxy App location not specified\n");
        return CI_ERROR;
+    }
 
     ci_debug_printf(1, "Using Proxy App at %s\n", PROXY_APP_LOCATION);    
     return CI_OK;
