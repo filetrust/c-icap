@@ -4,6 +4,8 @@ cicapdatadir=@DATADIR@
 cicapmoduledir=@MODSDIR@
 cicapmodule_LTLIBRARIES=gw_rebuild.la
 
+SUBDIRS = basic_app
+
 CONFS = gw_rebuild.conf
 
 gw_rebuild_la_LDFLAGS = -module -avoid-version
