@@ -1,0 +1,24 @@
+<html>
+ <head>
+   <title>Policy Issue</title>
+</head>
+
+<body>
+<h1>Document Access Blocked due to Policy</h1>
+
+
+You tried to upload/download a file that does not comply with current policy
+<br>
+The Http location is:
+<b> %GU </b>
+<br>
+The error code is:
+<b> %GE </b>
+<p>
+  For more information contact your system administrator
+
+<hr>
+
+
+</body>
+</html>
