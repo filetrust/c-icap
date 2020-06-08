@@ -27,13 +27,14 @@ static void rebuild_content_length(ci_request_t *req, gw_body_data_t *body);
 
 static int ALLOW204 = 1;
 static ci_off_t MAX_OBJECT_SIZE = 5*1024*1024;
-static int PASSONERROR = 0;
 static int DATA_CLEANUP = 1;
 #define GW_VERSION_SIZE 15
 #define GW_BT_FILE_PATH_SIZE 150
 
 static struct ci_magics_db *magic_db = NULL;
 static struct gw_file_types SCAN_FILE_TYPES = {NULL, NULL};
+
+char *PROXY_APP_LOCATION = NULL;
 
 /*Statistic  Ids*/
 static int GW_SCAN_REQS = -1;
@@ -80,9 +81,9 @@ static int init_body_data(ci_request_t *req);
 static struct ci_conf_entry conf_variables[] = {
     {"MaxObjectSize", &MAX_OBJECT_SIZE, ci_cfg_size_off, NULL},
     {"Allow204Responses", &ALLOW204, ci_cfg_onoff, NULL},
-    {"PassOnError", &PASSONERROR, ci_cfg_onoff, NULL},
     {"DataCleanup", &DATA_CLEANUP, ci_cfg_onoff, NULL},
-    {"ScanFileTypes", &SCAN_FILE_TYPES, cfg_ScanFileTypes, NULL},     
+    {"ProxyAppLocation", &PROXY_APP_LOCATION, ci_cfg_set_str, NULL},
+    {"ScanFileTypes", &SCAN_FILE_TYPES, cfg_ScanFileTypes, NULL},      
 };
 
 CI_DECLARE_MOD_DATA ci_service_module_t service = {
@@ -105,7 +106,7 @@ int gw_test_init_service(ci_service_xdata_t *srv_xdata,
                            struct ci_server_conf *server_conf)
 {
     ci_debug_printf(3, "gw_test_init_service......\n");
-
+    
     magic_db = server_conf->MAGIC_DB;
     gw_file_types_init(&SCAN_FILE_TYPES);
 
@@ -135,6 +136,12 @@ int gw_test_post_init_service(ci_service_xdata_t *srv_xdata,
                            struct ci_server_conf *server_conf)
 {
     ci_debug_printf(3, "gw_test_post_init_service......\n");
+    
+    if (!PROXY_APP_LOCATION)
+       ci_debug_printf(1, "Proxy App location not specified\n");
+       return CI_ERROR;
+
+    ci_debug_printf(1, "Using Proxy App at %s\n", PROXY_APP_LOCATION);    
     return CI_OK;
 }
 
@@ -428,10 +435,6 @@ static int handle_deflated(gw_test_req_data_t *data)
         err = ci_inflate_error(ret);
 #endif
         ci_stat_uint64_inc(GW_SCAN_FAILURES, 1);
-        if (PASSONERROR) {
-            ci_debug_printf(1, "Unable to uncompress deflate encoded data: %s! Let it pass due to PassOnError\n", err);
-            return 1;
-        }
 
         ci_debug_printf(1, "Unable to uncompress deflate encoded data: %s! Handle object as infected\n", err);
     }
