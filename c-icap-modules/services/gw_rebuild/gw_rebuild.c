@@ -346,8 +346,8 @@ int gw_rebuild_io(char *wbuf, int *wlen, char *rbuf, int *rlen, int iseof, ci_re
      }
      return CI_OK;
 }
-
-int replace_request_body(gw_rebuild_req_data_t* data, ci_simple_file_t* rebuild);
+static int rebuild_request_body(gw_rebuild_req_data_t* data, ci_simple_file_t* input, ci_simple_file_t* output);
+static int replace_request_body(gw_rebuild_req_data_t* data, ci_simple_file_t* rebuild);
 static int call_proxy_application(ci_simple_file_t* input, ci_simple_file_t* output);
 int gw_rebuild_end_of_data_handler(ci_request_t *req)
 {
@@ -365,56 +365,15 @@ int gw_rebuild_end_of_data_handler(ci_request_t *req)
         /* Create a tempoary file, then tidyup afterwards */
         ci_simple_file_t* tmp_input = ci_simple_file_new(gw_body_data_size(&data->body));
         ci_membuf_t* body_data = data->body.store.mem;
-        ci_debug_printf(3, "Initial memory buffer size = %d\n", ci_membuf_size(body_data));
 
         ci_simple_file_write(tmp_input, body_data->buf, ci_membuf_size(body_data), 1);
-        if (call_proxy_application(tmp_input, data->body.rebuild) == CI_OK)
-        { 
-            rebuild_status = CI_OK;
-            if (gw_body_data_renew_rebuild_data(&data->body) == CI_ERROR)
-            {
-                ci_debug_printf(3, "Problem sizing Rebuild\n");
-                rebuild_status = CI_ERROR;
-            } else {
-                if (gw_body_rebuild_size(&data->body) == 0)
-                {
-                    ci_debug_printf(3, "Rebuild no processing required\n");
-                    return CI_MOD_ALLOW204;
-                }                
-                if (!replace_request_body(data, data->body.rebuild))
-                {
-                    ci_debug_printf(3, "Error replacing request body\n");
-                    rebuild_status = CI_ERROR;
-                }  
-            } 
-            
-            ci_debug_printf(3, "Updated memory buffer size = %d\n", ci_membuf_size(data->body.store.mem));
-        }
         
+        rebuild_status = rebuild_request_body(data, tmp_input, data->body.rebuild);
+
         ci_simple_file_destroy(tmp_input);
         
     } else {
-        /* Process the request body here */       
-        if (call_proxy_application(data->body.store.file, data->body.rebuild) == CI_OK)
-        { 
-            rebuild_status = CI_OK;
-            if (gw_body_data_renew_rebuild_data(&data->body) == CI_ERROR)
-            {
-                ci_debug_printf(3, "Problem sizing Rebuild\n");
-                rebuild_status = CI_ERROR;
-            } else {
-                if (gw_body_rebuild_size(&data->body) == 0)
-                {
-                    ci_debug_printf(3, "Rebuild no processing required\n");
-                    return CI_MOD_ALLOW204;
-                }
-                if (!replace_request_body(data, data->body.rebuild))
-                {
-                    ci_debug_printf(3, "Error replacing request body\n");
-                    rebuild_status = CI_ERROR;
-                }  
-            }           
-        }
+        rebuild_status = rebuild_request_body(data, data->body.store.file,data->body.rebuild);
     }
     
     if (rebuild_status == CI_ERROR)
@@ -433,6 +392,32 @@ int gw_rebuild_end_of_data_handler(ci_request_t *req)
     gw_body_data_unlock_all(&data->body);
 
     return CI_MOD_DONE;
+}
+
+int rebuild_request_body(gw_rebuild_req_data_t* data, ci_simple_file_t* input, ci_simple_file_t* output)
+{
+    int rebuild_status = CI_ERROR;
+    if (call_proxy_application(data->body.store.file, data->body.rebuild) == CI_OK)
+    { 
+        rebuild_status = CI_OK;
+        if (gw_body_data_renew_rebuild_data(&data->body) == CI_ERROR)
+        {
+            ci_debug_printf(3, "Problem sizing Rebuild\n");
+            rebuild_status = CI_ERROR;
+        } else {
+            if (gw_body_rebuild_size(&data->body) == 0)
+            {
+                ci_debug_printf(3, "Rebuild no processing required\n");
+                return CI_MOD_ALLOW204;
+            }
+            if (!replace_request_body(data, data->body.rebuild))
+            {
+                ci_debug_printf(3, "Error replacing request body\n");
+                rebuild_status = CI_ERROR;
+            }  
+        }           
+    } 
+    return rebuild_status;    
 }
 
 int replace_request_body(gw_rebuild_req_data_t* data, ci_simple_file_t* rebuild)
