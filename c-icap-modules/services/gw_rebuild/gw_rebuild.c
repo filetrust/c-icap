@@ -352,7 +352,7 @@ int gw_rebuild_io(char *wbuf, int *wlen, char *rbuf, int *rlen, int iseof, ci_re
      return CI_OK;
 }
 
-static int call_proxy_application(ci_request_t *req, gw_rebuild_req_data_t *data);
+static int call_proxy_application(ci_simple_file_t* input, ci_simple_file_t* output);
 int gw_rebuild_end_of_data_handler(ci_request_t *req)
 {
     ci_debug_printf(3, "gw_rebuild_end_of_data_handler\n");
@@ -365,7 +365,7 @@ int gw_rebuild_end_of_data_handler(ci_request_t *req)
     }
 
     /* Process the request body here */
-    int return_status = call_proxy_application(req, data);
+    int return_status = call_proxy_application(data->body.store.file, data->body.rebuild);
     ci_debug_printf(3, "call_proxy_application status= %d\n", return_status);
     
     if (return_status == CI_OK) /* This needs to be refined */
@@ -603,20 +603,14 @@ void gw_rebuild_parse_args(gw_rebuild_req_data_t *data, char *args)
 }
 
 static int exec_prog(const char **argv);
-int call_proxy_application(ci_request_t *req, gw_rebuild_req_data_t *data)
-{
-    if (data->body.type != GW_BT_FILE)
-    {
-        ci_debug_printf(1, "TODO call_proxy_application convert Memory Store to File Store \n");
-        return CI_ERROR;
-    }
-    
+int call_proxy_application(ci_simple_file_t* input, ci_simple_file_t* output)
+{ 
     ci_debug_printf(4, "call_proxy_application \n\tSource File :%s\n\tRebuilt File:%s \n", 
-    data->body.store.file->filename, data->body.rebuild->filename);
+                    input->filename, output->filename);
 
     const char* args[4] = {PROXY_APP_LOCATION, 
-                           data->body.store.file->filename, 
-                           data->body.rebuild->filename, 
+                           input->filename, 
+                           output->filename, 
                            NULL};
 
     return exec_prog(args);  
