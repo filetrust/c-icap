@@ -16,14 +16,9 @@
 
 #include "md5.h"
 #include "common.h"
-#include <errno.h>
 #include <assert.h>
-#include <locale.h>
-#include <sys/types.h>
-#include <sys/wait.h>
-#include <unistd.h>
-#include <errno.h>
 #include <stdlib.h>
+#include <sys/wait.h>
 
 void generate_error_page(gw_rebuild_req_data_t *data, ci_request_t *req);
 static void rebuild_content_length(ci_request_t *req, gw_body_data_t *body);
@@ -353,7 +348,6 @@ int gw_rebuild_io(char *wbuf, int *wlen, char *rbuf, int *rlen, int iseof, ci_re
 }
 
 int replace_request_body(gw_rebuild_req_data_t* data, ci_simple_file_t* rebuild);
-int fileSize(int fd);
 static int call_proxy_application(ci_simple_file_t* input, ci_simple_file_t* output);
 int gw_rebuild_end_of_data_handler(ci_request_t *req)
 {
@@ -368,37 +362,31 @@ int gw_rebuild_end_of_data_handler(ci_request_t *req)
 
     /* Process the request body here */
     int return_status = call_proxy_application(data->body.store.file, data->body.rebuild);
-    ci_debug_printf(3, "call_proxy_application status= %d\n", return_status);
-
+    int processing_status = CI_OK;
     if (return_status == CI_OK)
-    {
-        ci_off_t new_size;
-        ci_debug_printf(3, "call_proxy_application problem checks size : %d\n", data->body.rebuild->fd);
-
-        new_size = fileSize(data->body.rebuild->fd);
-        if (new_size < 0)
+    {       
+        if (gw_body_data_renew_rebuild_data(&data->body) == CI_ERROR)
         {
-            ci_debug_printf(3, "call_proxy_application problem sizing Rebuild\n");
-            return CI_ERROR;
-        }
-        data->body.rebuild->endpos= new_size;
-        data->body.rebuild->readpos=0;
-        ci_debug_printf(3, "gw_body_rebuild_size = %ld\n", new_size);
-        
-        if (new_size == 0)
-        {
-            /* This needs to be refined */
-            return CI_MOD_ALLOW204;
-        }
-        if (!replace_request_body(data, data->body.rebuild))
-        {
-            ci_debug_printf(3, "Error replacing request body\n");
-            return CI_ERROR;
-        }      
+            ci_debug_printf(3, "Problem sizing Rebuild\n");
+            processing_status = CI_ERROR;
+        } else {
+            if (gw_body_rebuild_size(&data->body) == 0)
+            {
+                ci_debug_printf(3, "Rebuild no processing required\n");
+                return CI_MOD_ALLOW204;
+            }
+            if (!replace_request_body(data, data->body.rebuild))
+            {
+                ci_debug_printf(3, "Error replacing request body\n");
+                processing_status = CI_ERROR;
+            }  
+        }           
     }
     
-    if (return_status == CI_ERROR)
+    if (return_status == CI_ERROR || processing_status == CI_ERROR)
     {
+        ci_debug_printf(3, "call_proxy_application status= %d\n", return_status);
+
         int error_report_size;
         generate_error_page(data, req);               
         error_report_size = ci_membuf_size(data->error_page);
@@ -420,22 +408,12 @@ int replace_request_body(gw_rebuild_req_data_t* data, ci_simple_file_t* rebuild)
     if (data->body.type == GW_BT_FILE)
     {
         ci_simple_file_destroy(data->body.store.file);
-        data->body.store.file = rebuild;
+        data->body.store.file = rebuild;        
         return CI_OK;
     }
     
     /* Need to handle GW_BT_MEM */
     return CI_ERROR;
-}
-
-int fileSize(int fd) {
-   struct stat s;
-   if (fstat(fd, &s) == -1) {
-      int saveErrno = errno;
-      ci_debug_printf(3, "fstat(%d) returned errno=%d.", fd, saveErrno);
-      return(-1);
-   }
-   return(s.st_size);
 }
 
 static int handle_deflated(gw_rebuild_req_data_t *data)
