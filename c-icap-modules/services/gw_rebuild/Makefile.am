@@ -22,4 +22,4 @@ install-data-local:
 	$(mkinstalldirs) $(DESTDIR)$(cicapdatadir)/templates/gw_rebuild/en/
 	for f in $(TMPLS); do $(INSTALL) $(srcdir)/$$f $(DESTDIR)$(cicapdatadir)/templates/gw_rebuild/en/; done
 
-EXTRA_DIST = gw_rebuild.h gw_rebuild.conf gwfile.h gw_body.h gwfilestatus.h filetypes.h gwfiletypes.h glasswall_sdk.h $(TMPLS)
+EXTRA_DIST = gw_rebuild.h gw_rebuild.conf gw_body.h $(TMPLS)
