@@ -21,7 +21,7 @@ struct gw_file_types {
 };
 
 typedef struct gw_rebuild_req_data {
-    struct gw_body_data body;
+    gw_body_data_t body;
     ci_request_t *req;
     int must_scanned ;
     int allow204;

@@ -17,6 +17,8 @@ void gw_body_data_new(gw_body_data_t *bd, enum gw_body_type type, int size)
     }
     else
         bd->type = GW_BT_NONE;
+    
+    bd->rebuild = ci_simple_file_new(0);
     bd->buf_exceed = 0;
     bd->decoded = NULL;
 }
@@ -50,6 +52,10 @@ void gw_body_data_destroy(gw_body_data_t *body)
         ci_simple_file_destroy(body->decoded);
         body->decoded = NULL;
     }
+    if (body->rebuild) {
+        ci_simple_file_destroy(body->rebuild);
+        body->rebuild = NULL;        
+    }    
 }
 
 void gw_body_data_release(gw_body_data_t *body)
@@ -61,6 +67,8 @@ void gw_body_data_release(gw_body_data_t *body)
     assert(body->type == GW_BT_FILE);
     ci_simple_file_release(body->store.file);
     body->store.file = NULL;
+    ci_simple_file_release(body->rebuild);
+    
     body->type = GW_BT_NONE;
     if (body->decoded) {
         ci_simple_file_destroy(body->decoded);

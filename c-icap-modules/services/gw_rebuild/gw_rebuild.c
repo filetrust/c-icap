@@ -367,11 +367,14 @@ int gw_rebuild_end_of_data_handler(ci_request_t *req)
     /* Process the request body here */
     int return_status = call_proxy_application(req, data);
     ci_debug_printf(3, "call_proxy_application status= %d\n", return_status);
-
-    if (data->error_page)
+    
+    if (return_status == CI_OK) /* This needs to be refined */
+        return CI_MOD_ALLOW204;
+    
+    if (return_status == CI_ERROR)
     {
-        ci_debug_printf(5, "Error page to send\n");
         int error_report_size;
+        generate_error_page(data, req);               
         error_report_size = ci_membuf_size(data->error_page);
    
         gw_body_data_destroy(&data->body);
@@ -379,7 +382,7 @@ int gw_rebuild_end_of_data_handler(ci_request_t *req)
         gw_body_data_write(&data->body, data->error_page->buf, error_report_size, 1);
         rebuild_content_length(req, &data->body);
     }
-       
+ 
     ci_req_unlock_data(req);
     gw_body_data_unlock_all(&data->body);
 
@@ -524,7 +527,6 @@ int must_scanned(ci_request_t *req, char *preview_data, int preview_data_len)
     return type;
 }
 
-
 void generate_error_page(gw_rebuild_req_data_t *data, ci_request_t *req)
 {
     ci_membuf_t *error_page;
@@ -603,9 +605,19 @@ void gw_rebuild_parse_args(gw_rebuild_req_data_t *data, char *args)
 static int exec_prog(const char **argv);
 int call_proxy_application(ci_request_t *req, gw_rebuild_req_data_t *data)
 {
-    char* input = "input path";
-    char* output = "output path";
-    const char* args[4] = {PROXY_APP_LOCATION, input, output, NULL};
+    if (data->body.type != GW_BT_FILE)
+    {
+        ci_debug_printf(1, "TODO call_proxy_application convert Memory Store to File Store \n");
+        return CI_ERROR;
+    }
+    
+    ci_debug_printf(4, "call_proxy_application \n\tSource File :%s\n\tRebuilt File:%s \n", 
+    data->body.store.file->filename, data->body.rebuild->filename);
+
+    const char* args[4] = {PROXY_APP_LOCATION, 
+                           data->body.store.file->filename, 
+                           data->body.rebuild->filename, 
+                           NULL};
 
     return exec_prog(args);  
 }

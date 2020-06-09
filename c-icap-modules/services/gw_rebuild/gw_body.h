@@ -10,6 +10,7 @@ typedef struct gw_body_data {
         ci_simple_file_t *file;
         ci_membuf_t *mem;
     } store;
+    ci_simple_file_t* rebuild;
     int buf_exceed;
     ci_simple_file_t *decoded;
     enum gw_body_type type;
