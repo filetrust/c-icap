@@ -360,33 +360,65 @@ int gw_rebuild_end_of_data_handler(ci_request_t *req)
         return CI_MOD_DONE;
     }
 
-    /* Process the request body here */
-    int return_status = call_proxy_application(data->body.store.file, data->body.rebuild);
-    int processing_status = CI_OK;
-    if (return_status == CI_OK)
-    {       
-        if (gw_body_data_renew_rebuild_data(&data->body) == CI_ERROR)
-        {
-            ci_debug_printf(3, "Problem sizing Rebuild\n");
-            processing_status = CI_ERROR;
-        } else {
-            if (gw_body_rebuild_size(&data->body) == 0)
+    int rebuild_status = CI_ERROR;
+    if (data->body.type == GW_BT_MEM){
+        /* Create a tempoary file, then tidyup afterwards */
+        ci_simple_file_t* tmp_input = ci_simple_file_new(gw_body_data_size(&data->body));
+        ci_membuf_t* body_data = data->body.store.mem;
+        ci_debug_printf(3, "Initial memory buffer size = %d\n", ci_membuf_size(body_data));
+
+        ci_simple_file_write(tmp_input, body_data->buf, ci_membuf_size(body_data), 1);
+        if (call_proxy_application(tmp_input, data->body.rebuild) == CI_OK)
+        { 
+            rebuild_status = CI_OK;
+            if (gw_body_data_renew_rebuild_data(&data->body) == CI_ERROR)
             {
-                ci_debug_printf(3, "Rebuild no processing required\n");
-                return CI_MOD_ALLOW204;
-            }
-            if (!replace_request_body(data, data->body.rebuild))
+                ci_debug_printf(3, "Problem sizing Rebuild\n");
+                rebuild_status = CI_ERROR;
+            } else {
+                if (gw_body_rebuild_size(&data->body) == 0)
+                {
+                    ci_debug_printf(3, "Rebuild no processing required\n");
+                    return CI_MOD_ALLOW204;
+                }                
+                if (!replace_request_body(data, data->body.rebuild))
+                {
+                    ci_debug_printf(3, "Error replacing request body\n");
+                    rebuild_status = CI_ERROR;
+                }  
+            } 
+            
+            ci_debug_printf(3, "Updated memory buffer size = %d\n", ci_membuf_size(data->body.store.mem));
+        }
+        
+        ci_simple_file_destroy(tmp_input);
+        
+    } else {
+        /* Process the request body here */       
+        if (call_proxy_application(data->body.store.file, data->body.rebuild) == CI_OK)
+        { 
+            rebuild_status = CI_OK;
+            if (gw_body_data_renew_rebuild_data(&data->body) == CI_ERROR)
             {
-                ci_debug_printf(3, "Error replacing request body\n");
-                processing_status = CI_ERROR;
-            }  
-        }           
+                ci_debug_printf(3, "Problem sizing Rebuild\n");
+                rebuild_status = CI_ERROR;
+            } else {
+                if (gw_body_rebuild_size(&data->body) == 0)
+                {
+                    ci_debug_printf(3, "Rebuild no processing required\n");
+                    return CI_MOD_ALLOW204;
+                }
+                if (!replace_request_body(data, data->body.rebuild))
+                {
+                    ci_debug_printf(3, "Error replacing request body\n");
+                    rebuild_status = CI_ERROR;
+                }  
+            }           
+        }
     }
     
-    if (return_status == CI_ERROR || processing_status == CI_ERROR)
+    if (rebuild_status == CI_ERROR)
     {
-        ci_debug_printf(3, "call_proxy_application status= %d\n", return_status);
-
         int error_report_size;
         generate_error_page(data, req);               
         error_report_size = ci_membuf_size(data->error_page);
@@ -409,6 +441,11 @@ int replace_request_body(gw_rebuild_req_data_t* data, ci_simple_file_t* rebuild)
     {
         ci_simple_file_destroy(data->body.store.file);
         data->body.store.file = rebuild;        
+        return CI_OK;
+    } else if (data->body.type == GW_BT_FILE)
+    {
+        ci_membuf_free(data->body.store.mem);
+        data->body.store.mem = ci_simple_file_to_membuf(rebuild, CI_MEMBUF_CONST | CI_MEMBUF_HAS_EOF);
         return CI_OK;
     }
     
