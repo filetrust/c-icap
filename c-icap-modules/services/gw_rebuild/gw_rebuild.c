@@ -182,7 +182,6 @@ void *gw_rebuild_init_request_data(ci_request_t *req)
             data->args.enable204 = 1;
         else
             data->args.enable204 = 0;
-        data->args.forcescan = 0;
         data->args.sizelimit = 1;
         data->args.mode = 0;
 

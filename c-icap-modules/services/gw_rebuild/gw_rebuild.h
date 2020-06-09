@@ -32,13 +32,10 @@ typedef struct gw_rebuild_req_data {
     ci_off_t expected_size;
     struct{
       int enable204;
-      int forcescan;
       int sizelimit;
       int mode;
     } args;
     ci_off_t max_object_size;
-    int send_percent_bytes;
-    ci_off_t start_send_after;
     int encoded;
 } gw_rebuild_req_data_t;
 
