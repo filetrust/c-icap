@@ -352,6 +352,8 @@ int gw_rebuild_io(char *wbuf, int *wlen, char *rbuf, int *rlen, int iseof, ci_re
      return CI_OK;
 }
 
+int replace_request_body(gw_rebuild_req_data_t* data, ci_simple_file_t* rebuild);
+int fileSize(int fd);
 static int call_proxy_application(ci_simple_file_t* input, ci_simple_file_t* output);
 int gw_rebuild_end_of_data_handler(ci_request_t *req)
 {
@@ -367,9 +369,33 @@ int gw_rebuild_end_of_data_handler(ci_request_t *req)
     /* Process the request body here */
     int return_status = call_proxy_application(data->body.store.file, data->body.rebuild);
     ci_debug_printf(3, "call_proxy_application status= %d\n", return_status);
-    
-    if (return_status == CI_OK) /* This needs to be refined */
-        return CI_MOD_ALLOW204;
+
+    if (return_status == CI_OK)
+    {
+        ci_off_t new_size;
+        ci_debug_printf(3, "call_proxy_application problem checks size : %d\n", data->body.rebuild->fd);
+
+        new_size = fileSize(data->body.rebuild->fd);
+        if (new_size < 0)
+        {
+            ci_debug_printf(3, "call_proxy_application problem sizing Rebuild\n");
+            return CI_ERROR;
+        }
+        data->body.rebuild->endpos= new_size;
+        data->body.rebuild->readpos=0;
+        ci_debug_printf(3, "gw_body_rebuild_size = %ld\n", new_size);
+        
+        if (new_size == 0)
+        {
+            /* This needs to be refined */
+            return CI_MOD_ALLOW204;
+        }
+        if (!replace_request_body(data, data->body.rebuild))
+        {
+            ci_debug_printf(3, "Error replacing request body\n");
+            return CI_ERROR;
+        }      
+    }
     
     if (return_status == CI_ERROR)
     {
@@ -387,6 +413,29 @@ int gw_rebuild_end_of_data_handler(ci_request_t *req)
     gw_body_data_unlock_all(&data->body);
 
     return CI_MOD_DONE;
+}
+
+int replace_request_body(gw_rebuild_req_data_t* data, ci_simple_file_t* rebuild)
+{
+    if (data->body.type == GW_BT_FILE)
+    {
+        ci_simple_file_destroy(data->body.store.file);
+        data->body.store.file = rebuild;
+        return CI_OK;
+    }
+    
+    /* Need to handle GW_BT_MEM */
+    return CI_ERROR;
+}
+
+int fileSize(int fd) {
+   struct stat s;
+   if (fstat(fd, &s) == -1) {
+      int saveErrno = errno;
+      ci_debug_printf(3, "fstat(%d) returned errno=%d.", fd, saveErrno);
+      return(-1);
+   }
+   return(s.st_size);
 }
 
 static int handle_deflated(gw_rebuild_req_data_t *data)
