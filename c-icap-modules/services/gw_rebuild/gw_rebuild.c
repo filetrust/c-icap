@@ -349,7 +349,6 @@ int gw_rebuild_io(char *wbuf, int *wlen, char *rbuf, int *rlen, int iseof, ci_re
 }
 static int rebuild_request_body(gw_rebuild_req_data_t* data, ci_simple_file_t* input, ci_simple_file_t* output);
 static int replace_request_body(gw_rebuild_req_data_t* data, ci_simple_file_t* rebuild);
-static int call_proxy_application(ci_simple_file_t* input, ci_simple_file_t* output);
 int gw_rebuild_end_of_data_handler(ci_request_t *req)
 {
     ci_debug_printf(3, "gw_rebuild_end_of_data_handler\n");
@@ -395,13 +394,15 @@ int gw_rebuild_end_of_data_handler(ci_request_t *req)
     return CI_MOD_DONE;
 }
 
+static int call_proxy_application(ci_simple_file_t* input, ci_simple_file_t* output);
+static int refresh_externally_updated_file(ci_simple_file_t* updated_file);
 /* Return value:  */
 /* CI_OK - to continue to rebuilt content */
 /* CI_MOD_ALLOW204 - to continue to unchanged content */
 /* CI_ERROR - to report error, wither due to policy error or processing error */
 int rebuild_request_body(gw_rebuild_req_data_t* data, ci_simple_file_t* input, ci_simple_file_t* output)
 {
-    int gw_proxy_api_return = call_proxy_application(data->body.store.file, data->body.rebuild);
+    int gw_proxy_api_return = call_proxy_application(input, output);
     int ci_status;
     switch (gw_proxy_api_return)
     {
@@ -414,17 +415,17 @@ int rebuild_request_body(gw_rebuild_req_data_t* data, ci_simple_file_t* input, c
             break;
         case GW_REBUILT:
             {
-                if (gw_body_data_renew_rebuild_data(&data->body) == CI_ERROR){
+                if (refresh_externally_updated_file(output) == CI_ERROR){
                     ci_debug_printf(3, "Problem sizing Rebuild\n");
                     ci_status = CI_ERROR;
                     break;
                 } 
-                if (gw_body_rebuild_size(&data->body) == 0){
+                if (ci_simple_file_size(output) == 0){
                     ci_debug_printf(3, "No Rebuilt document available\n");
                     ci_status =  CI_ERROR;
                     break;
                 }
-                if (!replace_request_body(data, data->body.rebuild)){
+                if (!replace_request_body(data, output)){
                     ci_debug_printf(3, "Error replacing request body\n");
                     ci_status =  CI_ERROR;
                     break;
@@ -437,20 +438,22 @@ int rebuild_request_body(gw_rebuild_req_data_t* data, ci_simple_file_t* input, c
             ci_debug_printf(3, "Unrecognised Proxy API return value\n");
             ci_status =  CI_ERROR;        
     }
-    
     return ci_status;    
 }
 
 int replace_request_body(gw_rebuild_req_data_t* data, ci_simple_file_t* rebuild)
 {
+                ci_debug_printf(3, "gw_rebuild_req_data_t flags = %d \n", rebuild->flags);
+                ci_debug_printf(3, "gw_rebuild_req_data_t mmap_addr = %s, mmap_size = %ld endpos = %ld\n", rebuild->mmap_addr, rebuild->mmap_size, rebuild->endpos);
+
     if (data->body.type == GW_BT_FILE){
         ci_simple_file_destroy(data->body.store.file);
         data->body.store.file = rebuild;        
         return CI_OK;
     } else if (data->body.type == GW_BT_MEM){
         ci_membuf_free(data->body.store.mem);
-        data->body.store.mem = ci_simple_file_to_membuf(rebuild, CI_MEMBUF_CONST | CI_MEMBUF_HAS_EOF);
-        return CI_OK;
+        data->body.store.mem = ci_simple_file_to_membuf(rebuild, CI_MEMBUF_CONST | CI_MEMBUF_RO | CI_MEMBUF_NULL_TERMINATED);
+        return (data->body.store.mem == NULL)?CI_ERROR:CI_OK;
     }
     
     return CI_ERROR;
@@ -742,6 +745,29 @@ void rebuild_content_length(ci_request_t *req, gw_body_data_t *bd)
     snprintf(buf, sizeof(buf), "Content-Length: %" PRINTF_OFF_T, (CAST_OFF_T)new_file_size);
     ci_http_response_remove_header(req, "Content-Length");
     ci_http_response_add_header(req, buf);
+}
+
+static int file_size(int fd)
+{
+   struct stat s;
+   if (fstat(fd, &s) == -1) {
+      return(-1);
+   }
+   return(s.st_size);
+}
+
+int refresh_externally_updated_file(ci_simple_file_t* updated_file)
+{
+    ci_off_t new_size;
+    ci_simple_file_write(updated_file, NULL, 0, 1);  /* to close of the file have been modified externally */
+       
+    new_size = file_size(updated_file->fd);
+    if (new_size < 0)
+        return CI_ERROR;
+    
+    updated_file->endpos= new_size;
+    updated_file->readpos=0;
+    return CI_OK;
 }
 
 /****************************************************************************************/

@@ -112,19 +112,6 @@ void gw_body_data_replace_body(gw_body_data_t *body, char *buf, int len)
 	gw_body_data_write(body, buf, len, 1);	
 }
 
-int file_size(int fd);
-int gw_body_data_renew_rebuild_data(gw_body_data_t *body)
-{
-    ci_off_t new_size;
-    new_size = file_size(body->rebuild->fd);
-    if (new_size < 0)
-        return CI_ERROR;
-    
-    body->rebuild->endpos= new_size;
-    body->rebuild->readpos=0;
-    return CI_OK;
-}
-
 int gw_decompress_to_simple_file(int encodeMethod, const char *inbuf, size_t inlen, struct ci_simple_file *outfile, ci_off_t max_size)
 {
 #if defined(HAVE_CICAP_DECOMPRESS_TO)
@@ -140,12 +127,4 @@ int gw_decompress_to_simple_file(int encodeMethod, const char *inbuf, size_t inl
 #endif
 #endif
     return CI_UNCOMP_ERR_ERROR;
-}
-
-int file_size(int fd) {
-   struct stat s;
-   if (fstat(fd, &s) == -1) {
-      return(-1);
-   }
-   return(s.st_size);
 }

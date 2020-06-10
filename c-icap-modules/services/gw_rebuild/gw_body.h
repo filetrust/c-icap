@@ -29,7 +29,6 @@ void gw_body_data_release(gw_body_data_t *body);
 int gw_body_data_write(gw_body_data_t *body, char *buf, int len, int iseof);
 int gw_body_data_read(gw_body_data_t *body, char *buf, int len);
 void gw_body_data_replace_body(gw_body_data_t *body, char *buf, int len);
-int gw_body_data_renew_rebuild_data(gw_body_data_t *body);
 
 int gw_decompress_to_simple_file(int encodingMethod, const char *inbuf, size_t inlen, struct ci_simple_file *outfile, ci_off_t max_size);
 #endif
