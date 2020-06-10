@@ -328,7 +328,7 @@ AM_CONDITIONAL(USECLAMAV,[test a"$clamav" != ano])
 AM_CONDITIONAL(USEBDB,   [test a"$libdb" != ano])
 AM_CONDITIONAL(USE_VSCAN_PROFILES,[test a"$virus_scan_profiles_support" != a"no"])
 
-AC_OUTPUT([Makefile services/Makefile services/virus_scan/Makefile services/url_check/Makefile services/content_filtering/Makefile services/gw_test/Makefile modules/Makefile])
+AC_OUTPUT([Makefile services/Makefile services/virus_scan/Makefile services/url_check/Makefile services/content_filtering/Makefile services/gw_test/Makefile services/gw_rebuild/Makefile services/gw_rebuild/basic_app/Makefile modules/Makefile])
 
 if test a"$virus_scan_profiles_support" != a"no"; then
 echo -e "\n"\
