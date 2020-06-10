@@ -402,32 +402,43 @@ int gw_rebuild_end_of_data_handler(ci_request_t *req)
 int rebuild_request_body(gw_rebuild_req_data_t* data, ci_simple_file_t* input, ci_simple_file_t* output)
 {
     int gw_proxy_api_return = call_proxy_application(data->body.store.file, data->body.rebuild);
-    if (gw_proxy_api_return == GW_ERROR || gw_proxy_api_return == GW_FAILED)
-        return CI_ERROR;
-    
-    if (gw_proxy_api_return == GW_UNPROCESSED)
-        return CI_MOD_ALLOW204;
-    
-    if (gw_proxy_api_return == GW_REBUILT)
+    int ci_status;
+    switch (gw_proxy_api_return)
     {
-        if (gw_body_data_renew_rebuild_data(&data->body) == CI_ERROR){
-            ci_debug_printf(3, "Problem sizing Rebuild\n");
-            return CI_ERROR;
-        } else {
-            if (gw_body_rebuild_size(&data->body) == 0){
-                ci_debug_printf(3, "No Rebuilt document available\n");
-                return CI_ERROR;
+        case GW_ERROR:
+        case GW_FAILED:
+            ci_status = CI_ERROR;
+            break;
+        case GW_UNPROCESSED:
+            ci_status = CI_MOD_ALLOW204;
+            break;
+        case GW_REBUILT:
+            {
+                if (gw_body_data_renew_rebuild_data(&data->body) == CI_ERROR){
+                    ci_debug_printf(3, "Problem sizing Rebuild\n");
+                    ci_status = CI_ERROR;
+                    break;
+                } 
+                if (gw_body_rebuild_size(&data->body) == 0){
+                    ci_debug_printf(3, "No Rebuilt document available\n");
+                    ci_status =  CI_ERROR;
+                    break;
+                }
+                if (!replace_request_body(data, data->body.rebuild)){
+                    ci_debug_printf(3, "Error replacing request body\n");
+                    ci_status =  CI_ERROR;
+                    break;
+                }                  
+                ci_status =  CI_OK;
+                break;
             }
-            if (!replace_request_body(data, data->body.rebuild)){
-                ci_debug_printf(3, "Error replacing request body\n");
-                return CI_ERROR;
-            }  
-        } 
-        return CI_OK;
+        
+        default:
+            ci_debug_printf(3, "Unrecognised Proxy API return value\n");
+            ci_status =  CI_ERROR;        
     }
     
-    ci_debug_printf(3, "Unrecognised Proxy API return value\n");
-    return CI_ERROR;   
+    return ci_status;    
 }
 
 int replace_request_body(gw_rebuild_req_data_t* data, ci_simple_file_t* rebuild)
@@ -436,13 +447,12 @@ int replace_request_body(gw_rebuild_req_data_t* data, ci_simple_file_t* rebuild)
         ci_simple_file_destroy(data->body.store.file);
         data->body.store.file = rebuild;        
         return CI_OK;
-    } else if (data->body.type == GW_BT_FILE){
+    } else if (data->body.type == GW_BT_MEM){
         ci_membuf_free(data->body.store.mem);
         data->body.store.mem = ci_simple_file_to_membuf(rebuild, CI_MEMBUF_CONST | CI_MEMBUF_HAS_EOF);
         return CI_OK;
     }
     
-    /* Need to handle GW_BT_MEM */
     return CI_ERROR;
 }
 
