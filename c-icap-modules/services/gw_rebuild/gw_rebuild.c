@@ -13,6 +13,7 @@
 #include "c_icap/txtTemplate.h"
 #include "c_icap/stats.h"
 #include "gw_rebuild.h"
+#include "gw_proxy_api.h"
 
 #include "md5.h"
 #include "common.h"
@@ -394,41 +395,48 @@ int gw_rebuild_end_of_data_handler(ci_request_t *req)
     return CI_MOD_DONE;
 }
 
+/* Return value:  */
+/* CI_OK - to continue to rebuilt content */
+/* CI_MOD_ALLOW204 - to continue to unchanged content */
+/* CI_ERROR - to report error, wither due to policy error or processing error */
 int rebuild_request_body(gw_rebuild_req_data_t* data, ci_simple_file_t* input, ci_simple_file_t* output)
 {
-    int rebuild_status = CI_ERROR;
-    if (call_proxy_application(data->body.store.file, data->body.rebuild) == CI_OK)
-    { 
-        rebuild_status = CI_OK;
-        if (gw_body_data_renew_rebuild_data(&data->body) == CI_ERROR)
-        {
+    int gw_proxy_api_return = call_proxy_application(data->body.store.file, data->body.rebuild);
+    if (gw_proxy_api_return == GW_ERROR || gw_proxy_api_return == GW_FAILED)
+        return CI_ERROR;
+    
+    if (gw_proxy_api_return == GW_UNPROCESSED)
+        return CI_MOD_ALLOW204;
+    
+    if (gw_proxy_api_return == GW_REBUILT)
+    {
+        if (gw_body_data_renew_rebuild_data(&data->body) == CI_ERROR){
             ci_debug_printf(3, "Problem sizing Rebuild\n");
-            rebuild_status = CI_ERROR;
+            return CI_ERROR;
         } else {
-            if (gw_body_rebuild_size(&data->body) == 0)
-            {
-                ci_debug_printf(3, "Rebuild no processing required\n");
-                return CI_MOD_ALLOW204;
+            if (gw_body_rebuild_size(&data->body) == 0){
+                ci_debug_printf(3, "No Rebuilt document available\n");
+                return CI_ERROR;
             }
-            if (!replace_request_body(data, data->body.rebuild))
-            {
+            if (!replace_request_body(data, data->body.rebuild)){
                 ci_debug_printf(3, "Error replacing request body\n");
-                rebuild_status = CI_ERROR;
+                return CI_ERROR;
             }  
-        }           
-    } 
-    return rebuild_status;    
+        } 
+        return CI_OK;
+    }
+    
+    ci_debug_printf(3, "Unrecognised Proxy API return value\n");
+    return CI_ERROR;   
 }
 
 int replace_request_body(gw_rebuild_req_data_t* data, ci_simple_file_t* rebuild)
 {
-    if (data->body.type == GW_BT_FILE)
-    {
+    if (data->body.type == GW_BT_FILE){
         ci_simple_file_destroy(data->body.store.file);
         data->body.store.file = rebuild;        
         return CI_OK;
-    } else if (data->body.type == GW_BT_FILE)
-    {
+    } else if (data->body.type == GW_BT_FILE){
         ci_membuf_free(data->body.store.mem);
         data->body.store.mem = ci_simple_file_to_membuf(rebuild, CI_MEMBUF_CONST | CI_MEMBUF_HAS_EOF);
         return CI_OK;
@@ -554,9 +562,7 @@ int must_scanned(ci_request_t *req, char *preview_data, int preview_data_len)
         ci_debug_printf(1, "WARNING! %s, can not get required info to scan url: %s\n",
              (preview_data_len == 0? "No preview data" : "Error computing file type"),
              data->url_log);
-    }
-    else
-    {
+    } else {
         file_groups = ci_data_type_groups(magic_db, file_type);
         i = 0;
         if (file_groups) {
@@ -652,6 +658,7 @@ void gw_rebuild_parse_args(gw_rebuild_req_data_t *data, char *args)
 }
 
 static int exec_prog(const char **argv);
+/* Return value: exit status from executed application (gw_proxy_api_return), or GW_ERROR */
 int call_proxy_application(ci_simple_file_t* input, ci_simple_file_t* output)
 { 
     ci_debug_printf(4, "call_proxy_application \n\tSource File :%s\n\tRebuilt File:%s \n", 
@@ -666,6 +673,7 @@ int call_proxy_application(ci_simple_file_t* input, ci_simple_file_t* output)
 }
 
 /* First array item is path to executable, last array item is null. Program arguments are intermediate array elements*/
+/* Return value: exit status from executed application (gw_proxy_api_return), or GW_ERROR */
 static int exec_prog(const char **argv)
 {
     pid_t   my_pid;
@@ -674,28 +682,29 @@ static int exec_prog(const char **argv)
     if (0 == (my_pid = fork())) {
         if (-1 == execve(argv[0], (char **)argv , NULL)) {
             ci_debug_printf(1, "child process execve failed for %s (%d)", argv[0], my_pid);
-            return CI_ERROR;
+            return GW_ERROR;
         }
     }
     timeout = 1000;
 
     while (0 == waitpid(my_pid , &status , WNOHANG)) {
         if ( --timeout < 0 ) {
-            ci_debug_printf(1, "Unexpected running Proxy application (%d)\n", my_pid);
-            return CI_ERROR;
+            ci_debug_printf(1, "Unexpected timeout running Proxy application (%d)\n", my_pid);
+            return GW_ERROR;
         }
         sleep(1);
     }
 
     ci_debug_printf(8, "%s PID %d WEXITSTATUS %d WIFEXITED %d [status %d]\n",
             argv[0], my_pid, WEXITSTATUS(status), WIFEXITED(status), status);
-
-    if (1 != WIFEXITED(status) || 0 != WEXITSTATUS(status)) {
+            
+    if (WIFEXITED(status) ==0)
+    {
         ci_debug_printf(1, "Unexpected error running Proxy application (%d)\n", status);
-            return CI_ERROR;
+        return GW_ERROR;
     }
 
-    return CI_OK;
+    return WEXITSTATUS(status);
 }
 
 void rebuild_content_length(ci_request_t *req, gw_body_data_t *bd)
@@ -779,4 +788,3 @@ static int fmt_gw_rebuild_error_code(ci_request_t *req, char *buf, int len, cons
     gw_rebuild_req_data_t *data = ci_service_data(req);
     return snprintf(buf, len, "%d", data->gw_status);
 }
-
