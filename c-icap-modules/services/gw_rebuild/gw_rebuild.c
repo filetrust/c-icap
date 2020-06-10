@@ -289,7 +289,7 @@ int gw_rebuild_write_to_net(char *buf, int len, ci_request_t *req)
 
 int gw_rebuild_read_from_net(char *buf, int len, int iseof, ci_request_t *req)
 {
-    ci_debug_printf(7, "gw_rebuild_read_from_net; buf len is %d, iseof is %d\n", len, iseof);
+    ci_debug_printf(9, "gw_rebuild_read_from_net; buf len is %d, iseof is %d\n", len, iseof);
 
      //int ret;
     // int allow_transfer;
@@ -307,7 +307,7 @@ int gw_rebuild_read_from_net(char *buf, int len, int iseof, ci_request_t *req)
         /*TODO: Raise an error report rather than just raise an error */
         return CI_ERROR;
      } 
-     ci_debug_printf(8, "gw_rebuild_read_from_net:Writing to data->body, %d bytes \n", len);
+     ci_debug_printf(9, "gw_rebuild_read_from_net:Writing to data->body, %d bytes \n", len);
 
      return gw_body_data_write(&data->body, buf, len, iseof);
 }
