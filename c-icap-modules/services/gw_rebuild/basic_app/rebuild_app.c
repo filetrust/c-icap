@@ -43,11 +43,22 @@ int rebuild_scan(char* input_path, char* output_path)
         return GW_ERROR;
     }
     
-           
     int filetypeIndex;
     char *filetype;
     filetypeIndex = gw_sdk_determine_file_type_from_file(gw_sdk, input_path);
     printf("gw_sdk_determine_file_type_from_file %d\n", filetypeIndex);   
+    
+    if(filetypeIndex == ft_fileIssues ||
+       filetypeIndex == ft_bufferIssues || 
+       filetypeIndex == ft_internalIssues || 
+       filetypeIndex == ft_licenseExpired || 
+       filetypeIndex == ft_passwordProtectedOpcFile){
+            return GW_ERROR;
+    }
+    
+    if(filetypeIndex == ft_unknown){
+        return GW_UNPROCESSED;
+    }
     
     if (!glasswall_processable(filetypeIndex)){
         return GW_UNPROCESSED;
