@@ -403,6 +403,10 @@ static int refresh_externally_updated_file(ci_simple_file_t* updated_file);
 int rebuild_request_body(gw_rebuild_req_data_t* data, ci_simple_file_t* input, ci_simple_file_t* output)
 {
     int gw_proxy_api_return = call_proxy_application(input, output);
+    
+    /* Store the return status for inclusion in any error report */
+    data->gw_status = gw_proxy_api_return;
+    
     int ci_status;
     switch (gw_proxy_api_return)
     {
