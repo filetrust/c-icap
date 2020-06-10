@@ -412,13 +412,19 @@ int rebuild_request_body(gw_rebuild_req_data_t* data, ci_simple_file_t* input, c
     {
         case GW_ERROR:
         case GW_FAILED:
+            ci_debug_printf(3, "rebuild_request_body GW_ERROR/GW_FAILED\n");
+
             ci_status = CI_ERROR;
             break;
         case GW_UNPROCESSED:
+            ci_debug_printf(3, "rebuild_request_body GW_UNPROCESSED\n");
+
             ci_status = CI_MOD_ALLOW204;
             break;
         case GW_REBUILT:
             {
+                ci_debug_printf(3, "rebuild_request_body GW_REBUILT\n");
+                
                 if (refresh_externally_updated_file(output) == CI_ERROR){
                     ci_debug_printf(3, "Problem sizing Rebuild\n");
                     ci_status = CI_ERROR;
