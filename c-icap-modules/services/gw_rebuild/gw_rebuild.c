@@ -439,7 +439,7 @@ int rebuild_request_body(gw_rebuild_req_data_t* data, ci_simple_file_t* input, c
             }
         
         default:
-            ci_debug_printf(3, "Unrecognised Proxy API return value\n");
+            ci_debug_printf(3, "Unrecognised Proxy API return value (%d)\n", gw_proxy_api_return);
             ci_status =  CI_ERROR;        
     }
     return ci_status;    
@@ -447,9 +447,6 @@ int rebuild_request_body(gw_rebuild_req_data_t* data, ci_simple_file_t* input, c
 
 int replace_request_body(gw_rebuild_req_data_t* data, ci_simple_file_t* rebuild)
 {
-                ci_debug_printf(3, "gw_rebuild_req_data_t flags = %d \n", rebuild->flags);
-                ci_debug_printf(3, "gw_rebuild_req_data_t mmap_addr = %s, mmap_size = %ld endpos = %ld\n", rebuild->mmap_addr, rebuild->mmap_size, rebuild->endpos);
-
     if (data->body.type == GW_BT_FILE){
         ci_simple_file_destroy(data->body.store.file);
         data->body.store.file = rebuild;        
