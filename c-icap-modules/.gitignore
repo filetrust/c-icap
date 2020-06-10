@@ -7,6 +7,7 @@ c-icap-config
 c-icap-libicapapi-config
 c-icap-client
 c-icap-stretch
+basic_app
 autoconf.h
 compile
 config.*
