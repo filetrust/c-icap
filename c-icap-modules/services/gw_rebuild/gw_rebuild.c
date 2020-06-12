@@ -347,7 +347,7 @@ int gw_rebuild_io(char *wbuf, int *wlen, char *rbuf, int *rlen, int iseof, ci_re
      }
      return CI_OK;
 }
-static int rebuild_request_body(gw_rebuild_req_data_t* data, ci_simple_file_t* input, ci_simple_file_t* output);
+static int rebuild_request_body(ci_request_t *req, gw_rebuild_req_data_t* data, ci_simple_file_t* input, ci_simple_file_t* output);
 static int replace_request_body(gw_rebuild_req_data_t* data, ci_simple_file_t* rebuild);
 int gw_rebuild_end_of_data_handler(ci_request_t *req)
 {
@@ -368,12 +368,12 @@ int gw_rebuild_end_of_data_handler(ci_request_t *req)
 
         ci_simple_file_write(tmp_input, body_data->buf, ci_membuf_size(body_data), 1);
         
-        rebuild_status = rebuild_request_body(data, tmp_input, data->body.rebuild);
+        rebuild_status = rebuild_request_body(req, data, tmp_input, data->body.rebuild);
 
         ci_simple_file_destroy(tmp_input);
         
     } else {
-        rebuild_status = rebuild_request_body(data, data->body.store.file,data->body.rebuild);
+        rebuild_status = rebuild_request_body(req, data, data->body.store.file,data->body.rebuild);
     }
     
     if (rebuild_status == CI_ERROR)
@@ -400,7 +400,7 @@ static int refresh_externally_updated_file(ci_simple_file_t* updated_file);
 /* CI_OK - to continue to rebuilt content */
 /* CI_MOD_ALLOW204 - to continue to unchanged content */
 /* CI_ERROR - to report error, wither due to policy error or processing error */
-int rebuild_request_body(gw_rebuild_req_data_t* data, ci_simple_file_t* input, ci_simple_file_t* output)
+int rebuild_request_body(ci_request_t *req, gw_rebuild_req_data_t* data, ci_simple_file_t* input, ci_simple_file_t* output)
 {
     int gw_proxy_api_return = call_proxy_application(input, output);
     
@@ -439,7 +439,8 @@ int rebuild_request_body(gw_rebuild_req_data_t* data, ci_simple_file_t* input, c
                     ci_debug_printf(3, "Error replacing request body\n");
                     ci_status =  CI_ERROR;
                     break;
-                }                  
+                }      
+                rebuild_content_length(req, &data->body);                
                 ci_status =  CI_OK;
                 break;
             }
@@ -750,8 +751,17 @@ void rebuild_content_length(ci_request_t *req, gw_body_data_t *bd)
                     (CAST_OFF_T)new_file_size);
 
     snprintf(buf, sizeof(buf), "Content-Length: %" PRINTF_OFF_T, (CAST_OFF_T)new_file_size);
-    ci_http_response_remove_header(req, "Content-Length");
-    ci_http_response_add_header(req, buf);
+    int remove_status = 0;
+    if (req->type == ICAP_REQMOD){
+        remove_status = ci_http_request_remove_header(req, "Content-Length");
+        ci_http_request_add_header(req, buf);
+        ci_debug_printf(5, "Request Header updated(%d), %s\n", remove_status, buf);        
+    }
+    else if (req->type == ICAP_RESPMOD){
+        remove_status = ci_http_response_remove_header(req, "Content-Length");
+        ci_http_response_add_header(req, buf);
+        ci_debug_printf(5, "Response Header updated(%d), %s\n", remove_status, buf);        
+    }   
 }
 
 static int file_size(int fd)
