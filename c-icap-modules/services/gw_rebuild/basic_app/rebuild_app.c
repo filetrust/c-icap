@@ -1,5 +1,6 @@
 #include <stdio.h>  
 #include <stdlib.h>
+#include "cfg_param.h"
 
 #include "gwfilestatus.h"
 #include "glasswall_sdk.h"
@@ -13,6 +14,17 @@
 
 static glasswall_sdk_t* gw_sdk;
 
+char *input_path = NULL;
+char *output_path = NULL;
+char *configuration_path = NULL;
+
+static struct ci_options_entry options[] = {
+    {"-i", "input", &input_path, ci_cfg_set_str, "The input file path"},
+    {"-o", "output", &output_path, ci_cfg_set_str, "The output file path"},
+    {"-c", "configuration", &configuration_path, ci_cfg_set_str, "The configuration file path"},
+    {NULL, NULL, NULL, NULL}
+};
+
 /* Prototypes */
 void init_gw_sdk();
 int rebuild_scan(char* input_path, char* output_path);
@@ -21,13 +33,26 @@ int glasswall_processable(const int filetypeIndex);
 
 int main(int argc, char *argv[] )  {  
     int api_return_status;
+    ci_cfg_lib_init();
     init_gw_sdk();
-    if(argc < 3){  
-        printf("ERROR: incorrect number of arguments (%d)\n", argc);
-        exit (GW_ERROR);
-    }  
-    printf("Rebuilding from %s to %s\n", argv[INPUT_FILE], argv[OUTPUT_FILE]);
-    api_return_status = rebuild_scan(argv[INPUT_FILE], argv[OUTPUT_FILE]);
+    
+    if (!ci_args_apply(argc, argv, options)) {
+        ci_args_usage(argv[0], options);
+        exit(GW_ERROR);
+    }
+    
+    if (input_path == NULL){
+        printf("ERROR: input path is unspecified)\n");
+        exit(GW_ERROR);
+    }
+    
+    if (output_path == NULL){
+        printf("ERROR: output path is unspecified)\n");
+        exit(GW_ERROR);        
+    }
+    
+    printf("Rebuilding from %s to %s\n", input_path, output_path);
+    api_return_status = rebuild_scan(input_path, output_path);
 
     gw_sdk_file_done(gw_sdk);
     exit (api_return_status);
