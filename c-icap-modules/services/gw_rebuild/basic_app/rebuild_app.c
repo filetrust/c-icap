@@ -35,19 +35,18 @@ int main(int argc, char *argv[] )  {
     int api_return_status;
     ci_cfg_lib_init();
     init_gw_sdk();
-    
     if (!ci_args_apply(argc, argv, options)) {
         ci_args_usage(argv[0], options);
         exit(GW_ERROR);
     }
     
     if (input_path == NULL){
-        printf("ERROR: input path is unspecified)\n");
+        printf("ERROR: input path is unspecified\n");
         exit(GW_ERROR);
     }
     
     if (output_path == NULL){
-        printf("ERROR: output path is unspecified)\n");
+        printf("ERROR: output path is unspecified\n");
         exit(GW_ERROR);        
     }
     

@@ -689,15 +689,11 @@ void gw_rebuild_parse_args(gw_rebuild_req_data_t *data, char *args)
 static int exec_prog(const char **argv);
 /* Return value: exit status from executed application (gw_proxy_api_return), or GW_ERROR */
 int call_proxy_application(ci_simple_file_t* input, ci_simple_file_t* output)
-{ 
-    ci_debug_printf(4, "call_proxy_application \n\tSource File :%s\n\tRebuilt File:%s \n", 
-                    input->filename, output->filename);
-
-    const char* args[4] = {PROXY_APP_LOCATION, 
-                           input->filename, 
-                           output->filename, 
+{     
+    const char* args[6] = {PROXY_APP_LOCATION, 
+                           "-i", input->filename, 
+                           "-o", output->filename, 
                            NULL};
-
     return exec_prog(args);  
 }
 
