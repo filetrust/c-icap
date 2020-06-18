@@ -769,11 +769,11 @@ void rebuild_content_length(ci_request_t *req, gw_body_data_t *bd)
     }   
 }
 
-static int file_size(int fd)
+static ci_off_t file_size(int fd)
 {
    struct stat s;
    if (fstat(fd, &s) == -1) {
-      return(-1);
+      return(CI_ERROR);
    }
    return(s.st_size);
 }
