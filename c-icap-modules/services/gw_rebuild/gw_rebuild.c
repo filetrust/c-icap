@@ -234,12 +234,9 @@ void gw_rebuild_release_request_data(void *data)
     if (data) {
         ci_debug_printf(3, "Releasing gw_rebuild data.....\n");
         gw_rebuild_req_data_t *requestData = (gw_rebuild_req_data_t *) data;
-        if (DATA_CLEANUP)
-        {            
+        if (DATA_CLEANUP){            
             gw_body_data_destroy(&requestData->body);
-        }
-        else
-        {
+        } else {
             if (requestData->body.type == GW_BT_MEM)
                 gw_body_data_destroy(&requestData->body);
             else
@@ -410,7 +407,9 @@ int gw_rebuild_end_of_data_handler(ci_request_t *req)
         
         rebuild_status = rebuild_request_body(req, data, tmp_input, data->body.rebuild);
 
-        ci_simple_file_destroy(tmp_input);
+        if (DATA_CLEANUP){
+            ci_simple_file_destroy(tmp_input);
+        }
         
     } else {
         rebuild_status = rebuild_request_body(req, data, data->body.store.file,data->body.rebuild);
@@ -506,7 +505,9 @@ int rebuild_request_body(ci_request_t *req, gw_rebuild_req_data_t* data, ci_simp
 int replace_request_body(gw_rebuild_req_data_t* data, ci_simple_file_t* rebuild)
 {
     if (data->body.type == GW_BT_FILE){
-        ci_simple_file_destroy(data->body.store.file);
+        if (DATA_CLEANUP){
+            ci_simple_file_destroy(data->body.store.file);
+        }
         data->body.store.file = rebuild;        
         return CI_OK;
     } else if (data->body.type == GW_BT_MEM){
