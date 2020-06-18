@@ -138,6 +138,7 @@ CI_DECLARE_FUNC(int) ci_simple_file_write(ci_simple_file_t *body,
         const char *buf,int len, int iseof);
 CI_DECLARE_FUNC(int) ci_simple_file_read(ci_simple_file_t *body,char *buf,int len);
 CI_DECLARE_FUNC(int) ci_simple_file_truncate(ci_simple_file_t *body, ci_off_t new_size);
+CI_DECLARE_FUNC(int) ci_simple_file_reset_info(ci_simple_file_t *body);
 
 /*Currently it is just creates a MAP_PRIVATE memory.
   Only CI_MEMBUF_CONST flag is supported.

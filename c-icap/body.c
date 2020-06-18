@@ -818,6 +818,20 @@ int ci_simple_file_truncate(ci_simple_file_t *body, ci_off_t new_size)
     return 1;
 }
 
+int ci_simple_file_reset_info(ci_simple_file_t *body)
+{
+    ci_off_t size;
+    size =  lseek(body->fd, 0, SEEK_END);
+    if (size < 0)
+        return 0;
+    
+    body->endpos = size;
+    body->readpos = 0;
+    body->unlocked = 0;
+    body->flags |= CI_FILE_HAS_EOF;
+    return 1;
+}
+
 const char * ci_simple_file_to_const_string(ci_simple_file_t *body)
 {
 #if defined(USE_POSIX_MAPPED_FILES)

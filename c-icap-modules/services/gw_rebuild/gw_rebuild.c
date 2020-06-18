@@ -434,7 +434,6 @@ int gw_rebuild_end_of_data_handler(ci_request_t *req)
 }
 
 static int call_proxy_application(ci_simple_file_t* input, ci_simple_file_t* output);
-static int refresh_externally_updated_file(ci_simple_file_t* updated_file);
 /* Return value:  */
 /* CI_OK - to continue to rebuilt content */
 /* CI_MOD_ALLOW204 - to continue to unchanged content */
@@ -470,7 +469,7 @@ int rebuild_request_body(ci_request_t *req, gw_rebuild_req_data_t* data, ci_simp
             {
                 ci_debug_printf(3, "rebuild_request_body GW_REBUILT\n");
                 
-                if (refresh_externally_updated_file(output) == CI_ERROR){
+                if (ci_simple_file_reset_info(output) == CI_ERROR){
                     ci_debug_printf(3, "Problem sizing Rebuild\n");
                     ci_stat_uint64_inc(GW_REBUILD_ERRORS, 1); 
                     ci_status = CI_ERROR;
@@ -767,29 +766,6 @@ void rebuild_content_length(ci_request_t *req, gw_body_data_t *bd)
         ci_http_response_add_header(req, buf);
         ci_debug_printf(5, "Response Header updated(%d), %s\n", remove_status, buf);        
     }   
-}
-
-static ci_off_t file_size(int fd)
-{
-   struct stat s;
-   if (fstat(fd, &s) == -1) {
-      return(CI_ERROR);
-   }
-   return(s.st_size);
-}
-
-int refresh_externally_updated_file(ci_simple_file_t* updated_file)
-{
-    ci_off_t new_size;
-    ci_simple_file_write(updated_file, NULL, 0, 1);  /* to close of the file have been modified externally */
-       
-    new_size = file_size(updated_file->fd);
-    if (new_size < 0)
-        return CI_ERROR;
-    
-    updated_file->endpos= new_size;
-    updated_file->readpos=0;
-    return CI_OK;
 }
 
 /****************************************************************************************/
