@@ -8,7 +8,7 @@ cicapmoduledir=@MODSDIR@
 
 CONFS = gw_rebuild.conf
 
-basic_app_LDADD = @MODULES_LIBADD@ -lglasswall.classic
+basic_app_LDADD = @MODULES_LIBADD@ @UTILITIES_LIBADD@ -lglasswall.classic
 basic_app_LDFLAGS = -module -avoid-version
 basic_app_CFLAGS =
 basic_app_SOURCES = rebuild_app.c gwfiletypes.c glasswall_sdk.c
