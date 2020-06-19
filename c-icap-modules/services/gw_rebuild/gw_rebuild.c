@@ -38,6 +38,8 @@ static struct gw_file_types SCAN_FILE_TYPES = {NULL, NULL};
 
 char *PROXY_APP_LOCATION = NULL;
 
+char *REBUILD_VERSION = "1.1.1";
+
 /*Statistic  Ids*/
 static int GW_SCAN_REQS = -1;
 static int GW_SCAN_BYTES = -1;
@@ -57,6 +59,8 @@ struct ci_fmt_entry gw_rebuild_report_format_table [] = {
     {"%GE", "The Error code", fmt_gw_rebuild_error_code},
     { NULL, NULL, NULL}
 };
+
+static ci_service_xdata_t *gw_rebuild_xdata = NULL;
 
 static int GWREQDATA_POOL = -1;
 
@@ -80,6 +84,8 @@ int cfg_ScanFileTypes(const char *directive, const char **argv, void *setdata);
 
 /*General functions*/
 static int get_filetype(ci_request_t *req, int *encoding);
+static void set_istag(ci_service_xdata_t *srv_xdata);
+static void cmd_reload_istag(const char *name, int type, void *data);
 static int init_body_data(ci_request_t *req);
 
 /*Configuration Table .....*/
@@ -113,6 +119,8 @@ int gw_rebuild_init_service(ci_service_xdata_t *srv_xdata,
 {   
     magic_db = server_conf->MAGIC_DB;
     gw_file_types_init(&SCAN_FILE_TYPES);
+    
+    gw_rebuild_xdata = srv_xdata;
 
     ci_service_set_preview(srv_xdata, 1024);
     ci_service_enable_204(srv_xdata);
@@ -159,6 +167,10 @@ int gw_rebuild_post_init_service(ci_service_xdata_t *srv_xdata,
        ci_debug_printf(1, "Proxy App location not specified\n");
        return CI_ERROR;
     }
+    
+    
+    set_istag(gw_rebuild_xdata);
+    register_command_extend(GW_RELOAD_ISTAG, ONDEMAND_CMD, NULL, cmd_reload_istag);
 
     ci_debug_printf(1, "Using Proxy App at %s\n", PROXY_APP_LOCATION);    
     return CI_OK;
@@ -506,65 +518,6 @@ int replace_request_body(gw_rebuild_req_data_t* data, ci_simple_file_t* rebuild)
     return CI_ERROR;
 }
 
-static int handle_deflated(gw_rebuild_req_data_t *data)
-{
-    const char *err = NULL;
-    /*
-      Normally antiviruses can not handle deflate encoding, because there is not
-      any way to recognize them. So try to uncompress deflated files before pass them
-      to the antivirus engine.
-    */
-    int ret = CI_UNCOMP_OK;
-
-    if (data->encoded != CI_ENCODE_DEFLATE
-#if defined(HAVE_CICAP_BROTLI)
-        && data->encoded != CI_ENCODE_BROTLI
-#endif
-       )
-        return 1;
-
-    if ((data->body.decoded = ci_simple_file_new(0))) {
-        const char *zippedData = NULL;
-        size_t zippedDataLen = 0;
-        if (data->body.type == GW_BT_FILE) {
-            zippedData = ci_simple_file_to_const_string(data->body.store.file);
-            zippedDataLen = data->body.store.file->endpos;
-            /**/
-        } else {
-            assert(data->body.type == GW_BT_MEM);
-            zippedData = data->body.store.mem->buf;
-            zippedDataLen = data->body.store.mem->endpos;
-        }
-        if (zippedData) {
-            ci_debug_printf(3, "Zipped data %p of size %ld, encoding method: %s\n", zippedData, (long int) zippedDataLen, (data->encoded == CI_ENCODE_DEFLATE ? "deflate" : "brotli"));
-            ret = gw_decompress_to_simple_file(data->encoded, zippedData, zippedDataLen, data->body.decoded, MAX_OBJECT_SIZE);
-            ci_debug_printf(3, "Scan from unzipped file %s of size %lld\n", data->body.decoded->filename, (long long int)data->body.decoded->endpos);
-        }
-    } else {
-        ci_debug_printf(1, "Enable to create temporary file to decode deflated file!\n");
-        ret = CI_UNCOMP_ERR_ERROR;
-    }
-
-
-    if (ret ==CI_UNCOMP_OK)
-        return 1;
-
-    if (ret == CI_UNCOMP_ERR_NONE) /*Exceeds the maximum allowed size*/
-        data->must_scanned = NO_SCAN;
-    else {
-        /*Probably corrupted object. Handle it as virus*/
-#if defined(HAVE_CICAP_DECOMPRESS_ERROR)
-        err = ci_decompress_error(ret);
-#else
-        err = ci_inflate_error(ret);
-#endif
-        ci_stat_uint64_inc(GW_REBUILD_ERRORS, 1);
-
-        ci_debug_printf(1, "Unable to uncompress deflate encoded data: %s! Handle object as infected\n", err);
-    }
-    return 0;
-}
-
 /*******************************************************************************/
 /* Other  functions                                                            */
 
@@ -574,6 +527,22 @@ int get_filetype(ci_request_t *req, int *iscompressed)
     /*Use the ci_magic_req_data_type which caches the result*/
     filetype = ci_magic_req_data_type(req, iscompressed);
     return filetype;
+}
+
+static void cmd_reload_istag(const char *name, int type, void *data)
+{
+    if (gw_rebuild_xdata)
+        set_istag(gw_rebuild_xdata);
+}
+
+void set_istag(ci_service_xdata_t *srv_xdata)
+{
+    ci_debug_printf(9, "Updating istag %s with %s\n", srv_xdata->ISTag, REBUILD_VERSION);
+    char istag[SERVICE_ISTAG_SIZE + 1];
+    
+    istag[0] = '-';
+    strncpy(istag + 1, REBUILD_VERSION, strlen(REBUILD_VERSION));
+    ci_service_set_istag(srv_xdata, istag);
 }
 
 static int init_body_data(ci_request_t *req)
