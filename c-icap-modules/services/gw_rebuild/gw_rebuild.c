@@ -31,6 +31,7 @@ static ci_off_t MAX_OBJECT_SIZE = 5*1024*1024;
 static int DATA_CLEANUP = 1;
 #define GW_VERSION_SIZE 15
 #define GW_BT_FILE_PATH_SIZE 150
+#define STATS_BUFFER 1024
 
 static struct ci_magics_db *magic_db = NULL;
 static struct gw_file_types SCAN_FILE_TYPES = {NULL, NULL};
@@ -40,8 +41,11 @@ char *PROXY_APP_LOCATION = NULL;
 /*Statistic  Ids*/
 static int GW_SCAN_REQS = -1;
 static int GW_SCAN_BYTES = -1;
-static int GW_ISSUES_FOUND = -1;
-static int GW_SCAN_FAILURES = -1;
+static int GW_REBUILD_FAILURES = -1;
+static int GW_REBUILD_ERRORS = -1;
+static int GW_REBUILD_SUCCESSES = -1;
+static int GW_NOT_PROCESSED = -1;
+static int GW_UNPROCESSABLE = -1;
 
 /*********************/
 /* Formating table   */
@@ -103,6 +107,7 @@ CI_DECLARE_MOD_DATA ci_service_module_t service = {
     NULL
 };
 
+static char* concat(char* output, const char* s1, const char* s2);
 int gw_rebuild_init_service(ci_service_xdata_t *srv_xdata,
                            struct ci_server_conf *server_conf)
 {   
@@ -123,13 +128,29 @@ int gw_rebuild_init_service(ci_service_xdata_t *srv_xdata,
 
     /*initialize statistic counters*/
     /* TODO:convert to const after fix ci_stat_* api*/
+    char template_buf[STATS_BUFFER];
+    char buf[STATS_BUFFER];
+    buf[STATS_BUFFER-1] = '\0';
     char *stats_label = "Service gw_rebuild";
-    GW_SCAN_REQS = ci_stat_entry_register("Requests scanned", STAT_INT64_T, stats_label);
-    GW_SCAN_BYTES = ci_stat_entry_register("Body bytes scanned", STAT_KBS_T, stats_label);
-    GW_ISSUES_FOUND = ci_stat_entry_register("Issues found", STAT_INT64_T, stats_label);
-    GW_SCAN_FAILURES = ci_stat_entry_register("Scan failures", STAT_INT64_T, stats_label);
+    concat(template_buf, stats_label, " %s");
+    snprintf(buf, STATS_BUFFER-1, template_buf, "REQUESTS SCANNED");
+    GW_SCAN_REQS = ci_stat_entry_register(buf, STAT_INT64_T, stats_label);
+    snprintf(buf, STATS_BUFFER-1, template_buf, "BODY BYTES SCANNED");
+    GW_SCAN_BYTES = ci_stat_entry_register(buf, STAT_KBS_T, stats_label);
+    snprintf(buf, STATS_BUFFER-1, template_buf, "REBUILD FAILURES");    
+    GW_REBUILD_FAILURES = ci_stat_entry_register(buf, STAT_INT64_T, stats_label);
+    snprintf(buf, STATS_BUFFER-1, template_buf, "REBUILD ERRORS");
+    GW_REBUILD_ERRORS = ci_stat_entry_register(buf, STAT_INT64_T, stats_label);
+    snprintf(buf, STATS_BUFFER-1, template_buf, "SCAN REBUILT");
+    GW_REBUILD_SUCCESSES = ci_stat_entry_register(buf, STAT_INT64_T, stats_label);
+    snprintf(buf, STATS_BUFFER-1, template_buf, "UNPROCESSED");
+    GW_NOT_PROCESSED = ci_stat_entry_register(buf, STAT_INT64_T, stats_label);
+    snprintf(buf, STATS_BUFFER-1, template_buf, "UNPROCESSABLE");
+    GW_UNPROCESSABLE = ci_stat_entry_register(buf, STAT_INT64_T, stats_label);      
+        
     return CI_OK;
 }
+
 
 int gw_rebuild_post_init_service(ci_service_xdata_t *srv_xdata,
                            struct ci_server_conf *server_conf)
@@ -231,6 +252,7 @@ int gw_rebuild_check_preview_handler(char *preview_data, int preview_data_len,
 
      if (!data || !ci_req_hasbody(req)){
         ci_debug_printf(6, "No body data, allow 204\n");
+        ci_stat_uint64_inc(GW_UNPROCESSABLE, 1); 
         return CI_MOD_ALLOW204;
      }
 
@@ -246,8 +268,10 @@ int gw_rebuild_check_preview_handler(char *preview_data, int preview_data_len,
         ci_debug_printf(2, "Failed to retrieve HTTP request URL\n");
     }
 
-    if (init_body_data(req) == CI_ERROR)
+    if (init_body_data(req) == CI_ERROR){
+        ci_stat_uint64_inc(GW_REBUILD_ERRORS, 1);         
         return CI_ERROR;
+    }
     
     if (preview_data_len == 0) {
         return CI_MOD_CONTINUE;
@@ -255,13 +279,16 @@ int gw_rebuild_check_preview_handler(char *preview_data, int preview_data_len,
     
     if (must_scanned(req, preview_data, preview_data_len) == NO_SCAN){
         ci_debug_printf(6, "Not in scan list. Allow it...... \n");
+        ci_stat_uint64_inc(GW_UNPROCESSABLE, 1);         
         return CI_MOD_ALLOW204;
     }
     
     if (preview_data_len) {
         if (gw_body_data_write(&data->body, preview_data, preview_data_len,
-                                ci_req_hasalldata(req)) == CI_ERROR)
-        return CI_ERROR;
+                                ci_req_hasalldata(req)) == CI_ERROR){
+            ci_stat_uint64_inc(GW_REBUILD_ERRORS, 1);                        
+            return CI_ERROR;
+        }
     }
     ci_debug_printf(6, "gw_rebuild_check_preview_handler: gw_body_data_write data_len %d\n", preview_data_len);
 
@@ -357,6 +384,7 @@ int gw_rebuild_end_of_data_handler(ci_request_t *req)
 
     if (!data || data->body.type == GW_BT_NONE){
         data->gw_processing = GW_PROCESSING_NONE;
+        ci_stat_uint64_inc(GW_UNPROCESSABLE, 1);                 
         return CI_MOD_DONE;
     }
 
@@ -399,9 +427,11 @@ static int refresh_externally_updated_file(ci_simple_file_t* updated_file);
 /* Return value:  */
 /* CI_OK - to continue to rebuilt content */
 /* CI_MOD_ALLOW204 - to continue to unchanged content */
-/* CI_ERROR - to report error, wither due to policy error or processing error */
+/* CI_ERROR - to report error, whether due to policy error or processing error */
 int rebuild_request_body(ci_request_t *req, gw_rebuild_req_data_t* data, ci_simple_file_t* input, ci_simple_file_t* output)
 {
+    ci_stat_uint64_inc(GW_SCAN_REQS, 1);    
+    ci_stat_kbs_inc(GW_SCAN_BYTES, (int)gw_body_data_size(&data->body));
     int gw_proxy_api_return = call_proxy_application(input, output);
     
     /* Store the return status for inclusion in any error report */
@@ -410,15 +440,19 @@ int rebuild_request_body(ci_request_t *req, gw_rebuild_req_data_t* data, ci_simp
     int ci_status;
     switch (gw_proxy_api_return)
     {
-        case GW_ERROR:
         case GW_FAILED:
-            ci_debug_printf(3, "rebuild_request_body GW_ERROR/GW_FAILED\n");
-
+            ci_debug_printf(3, "rebuild_request_body GW_FAILED\n");
+            ci_stat_uint64_inc(GW_REBUILD_FAILURES, 1); 
+            ci_status = CI_ERROR;
+            break;
+        case GW_ERROR:
+            ci_debug_printf(3, "rebuild_request_body GW_ERROR\n");
+            ci_stat_uint64_inc(GW_REBUILD_ERRORS, 1); 
             ci_status = CI_ERROR;
             break;
         case GW_UNPROCESSED:
             ci_debug_printf(3, "rebuild_request_body GW_UNPROCESSED\n");
-
+            ci_stat_uint64_inc(GW_NOT_PROCESSED, 1); 
             ci_status = CI_MOD_ALLOW204;
             break;
         case GW_REBUILT:
@@ -427,26 +461,31 @@ int rebuild_request_body(ci_request_t *req, gw_rebuild_req_data_t* data, ci_simp
                 
                 if (refresh_externally_updated_file(output) == CI_ERROR){
                     ci_debug_printf(3, "Problem sizing Rebuild\n");
+                    ci_stat_uint64_inc(GW_REBUILD_ERRORS, 1); 
                     ci_status = CI_ERROR;
                     break;
                 } 
                 if (ci_simple_file_size(output) == 0){
                     ci_debug_printf(3, "No Rebuilt document available\n");
+                    ci_stat_uint64_inc(GW_REBUILD_ERRORS, 1); 
                     ci_status =  CI_ERROR;
                     break;
                 }
                 if (!replace_request_body(data, output)){
                     ci_debug_printf(3, "Error replacing request body\n");
+                    ci_stat_uint64_inc(GW_REBUILD_ERRORS, 1); 
                     ci_status =  CI_ERROR;
                     break;
                 }      
-                rebuild_content_length(req, &data->body);                
+                rebuild_content_length(req, &data->body);  
+                ci_stat_uint64_inc(GW_REBUILD_SUCCESSES, 1);           
                 ci_status =  CI_OK;
                 break;
             }
         
         default:
             ci_debug_printf(3, "Unrecognised Proxy API return value (%d)\n", gw_proxy_api_return);
+            ci_stat_uint64_inc(GW_REBUILD_ERRORS, 1); 
             ci_status =  CI_ERROR;        
     }
     return ci_status;    
@@ -519,7 +558,7 @@ static int handle_deflated(gw_rebuild_req_data_t *data)
 #else
         err = ci_inflate_error(ret);
 #endif
-        ci_stat_uint64_inc(GW_SCAN_FAILURES, 1);
+        ci_stat_uint64_inc(GW_REBUILD_ERRORS, 1);
 
         ci_debug_printf(1, "Unable to uncompress deflate encoded data: %s! Handle object as infected\n", err);
     }
@@ -841,3 +880,11 @@ static int fmt_gw_rebuild_error_code(ci_request_t *req, char *buf, int len, cons
     gw_rebuild_req_data_t *data = ci_service_data(req);
     return snprintf(buf, len, "%d", data->gw_status);
 }
+
+char* concat(char* output, const char* s1, const char* s2)
+{
+    strcpy(output, s1);
+    strcat(output, s2);
+    return output;
+}
+
