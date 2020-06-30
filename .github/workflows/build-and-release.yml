@@ -22,6 +22,7 @@ jobs:
     # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
     - uses: actions/checkout@v2
       with:
+        token: ${{ secrets.GW_SDK_TOKEN }} 
         submodules: true
 
     # Build and push container image.
