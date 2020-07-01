@@ -1,0 +1,37 @@
+%% Render using https://mermaid-js.github.io/mermaid-live-editor
+
+sequenceDiagram
+  participant IC as ICAP Client
+  participant request as HTTP Request
+  participant IS as ICAP Server
+  participant GW as gw_rebuild
+  participant PA as Proxy App
+  participant SDK as GW SDK
+  participant Auditor
+  participant RS as Results Storage
+  
+  IC->>+IS: REQMOD
+  IS->>+GW: init_request_data
+  IS->>GW: check_preview
+  IS->>GW: end_of_data
+
+  GW->>+PA: input, output, configuration(adaptation_id)
+  PA->>Auditor: new_item(adaptation_id))
+  PA->>+SDK: filetype_detection
+  SDK-->>PA: filetype
+  PA->>SDK: file_analysis
+  SDK-->>PA: report
+  PA->>RS: process_results(adaptation_id, analysis_report)
+  PA->>SDK: file_protect
+  SDK-->>-PA: rebuilt file
+  PA->>Auditor: processed_item(adaptation_id, REBUILT)
+
+  PA-->>GW: process_status(REBUILT)
+  deactivate PA
+
+  GW->>request: add_adaptation_id_header
+  GW->>request: update_request_body 
+  GW-->>-IS: CI_DONE
+
+  IS-->>-IC: ICAP 200(request)
+
