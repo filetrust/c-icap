@@ -1,10 +1,12 @@
 # ICAP Proof of Concept
 A demonstration that the Glasswall Rebuild SKD can be used within an ICAP service to regenerate documents.
 
+## Threat Model
+[On-Premise Deployment](./Documentation/threat_model_onpremise.md)
+
 ## Getting started
 The original baseline code has been cloned from the open source project
 https://sourceforge.net/projects/c-icap/
-
 
 ## Installing ICAP PoC
 
