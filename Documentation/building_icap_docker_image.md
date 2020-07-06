@@ -1,6 +1,8 @@
 # Building a Docker Image of the Glasswall ICAP Product
  
 The following instructions provide a step by step guide on how to create a Docker Image of the Glasswall ICAP Server.
+
+> The created Docker Image may be pushed to a Container Registry for later access. Since the image contains the licensed Glasswall SDK access to the Image **must** be restricted and **must** be available only within the constraints of the licensing agreement.
  
 ## Pre-requisite
 If carrying out these steps on Windows, then Docker Desktop is required. Docker Desktop for Windows can be downloaded from [here](https://docs.docker.com/docker-for-windows/install/).
