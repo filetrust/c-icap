@@ -30,4 +30,7 @@ docker run -d -p 1300:1344 --name gw-icap gw-icap:latest
 ```
 This command will run the image in a detached mode, routing traffic from port 1300 of the host to port 1344 of the image. A different host port may be used, but it must be associated with port 1344 of the running image.
 
- 
+To stop the container
+```
+docker stop gw-icap 
+``` 
