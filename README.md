@@ -4,6 +4,9 @@ A demonstration that the Glasswall Rebuild SKD can be used within an ICAP servic
 ## Threat Model
 [On-Premise Deployment](./Documentation/threat_model_onpremise.md)
 
+## Creating Glasswall C-ICAP Docker Image
+[How to create a Docker Image of the Glasswall ICAP Product](./Documentation/building_icap_docker_image.md)
+
 ## Getting started
 The original baseline code has been cloned from the open source project
 https://sourceforge.net/projects/c-icap/
