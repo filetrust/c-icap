@@ -35,5 +35,5 @@ jobs:
         password: ${{ secrets.AZURE_PASS }} 
 
     - run: |
-        docker build . -t ${{ env.REPOSITORY }}/${{ env.IMAGE }}:${{ github.sha }}
+        docker build ../../. -t ${{ env.REPOSITORY }}/${{ env.IMAGE }}:${{ github.sha }}
         docker push ${{ env.REPOSITORY }}/${{ env.IMAGE}}:${{ github.sha }}
