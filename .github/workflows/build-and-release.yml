@@ -2,7 +2,7 @@
 
 name: CI
 env:
-  REPOSITORY: myinittest.azurecr.io
+  REPOSITORY: glasswallicap.azurecr.io
   IMAGE: icap-test
 # Controls when the action will run. Triggers the workflow on push or pull request
 # events but only for the master branch
