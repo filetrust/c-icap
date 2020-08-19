@@ -28,7 +28,7 @@ jobs:
     - uses: actions/checkout@v2
       with:
         token: ${{ secrets.GW_SDK_TOKEN }} 
-        submodule: true
+        submodules: true
 
     - uses: azure/docker-login@v1
       with:
