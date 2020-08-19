@@ -4,10 +4,9 @@ RUN apt-get update && apt-get upgrade -y && apt-get install -y libfreetype6
 FROM base as source
 RUN apt-get install -y curl gcc make automake automake1.11 unzip && \
     cd /tmp && mkdir c-icap
-   
 COPY ./c-icap/ /tmp/c-icap/c-icap/
 COPY ./c-icap-modules /tmp/c-icap/c-icap-modules  
-COPY ./Glasswall-Rebuild-SDK-Linux/SDK/libglasswall.classic.so /usr/lib
+COPY ./Glasswall-Rebuild-SDK-Evaluation/Linux/Library/libglasswall.classic.so /usr/lib
 RUN echo "/usr/lib" > /etc/ld.so.conf.d/glasswall.classic.conf && ldconfig
 
 FROM source as build    
