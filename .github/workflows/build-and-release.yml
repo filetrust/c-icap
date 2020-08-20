@@ -45,7 +45,7 @@ jobs:
     - name: 'Deploy to Azure Container Instances'
       uses: 'azure/aci-deploy@v1'
       with:
-        resource-group: ${{ RESOURCE_GROUP }}
+        resource-group: ${{ env.RESOURCE_GROUP }}
         #  dns-name-label: url-for-container
         image: ${{ env.REPOSITORY }}/${{ env.IMAGE}}:${{ github.sha }}
         registry-username: ${{ secrets.REGISTRY_USERNAME }}
