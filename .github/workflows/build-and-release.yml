@@ -4,15 +4,16 @@ name: CI
 env:
   REPOSITORY: glasswallicap.azurecr.io
   IMAGE: icap-test
+  RESOURCE_GROUP: gw-gks-icap-squid-proxy
 # Controls when the action will run. Triggers the workflow on push or pull request
 # events but only for the master branch
 on:
   push:
-    branches: [ master ]
+    branches: [ update/workflow ]
     paths-ignore: 
       - 'Documentation/**'
   pull_request:
-    branches: [ master ]
+    branches: [ update/workflow ]
     paths-ignore: 
       - 'Documentation/**'    
 
@@ -39,3 +40,15 @@ jobs:
     - run: |
         docker build . -t ${{ env.REPOSITORY }}/${{ env.IMAGE }}:${{ github.sha }}
         docker push ${{ env.REPOSITORY }}/${{ env.IMAGE}}:${{ github.sha }}
+   
+    # Deploy the ICAP container to Azure container instances 
+    - name: 'Deploy to Azure Container Instances'
+      uses: 'azure/aci-deploy@v1'
+      with:
+        resource-group: ${{ RESOURCE_GROUP }}
+        #  dns-name-label: url-for-container
+        image: ${{ env.REPOSITORY }}/${{ env.IMAGE}}:${{ github.sha }}
+        registry-username: ${{ secrets.REGISTRY_USERNAME }}
+        registry-password: ${{ secrets.REGISTRY_PASSWORD }}
+        name: icap-container
+        location: 'UK South'
