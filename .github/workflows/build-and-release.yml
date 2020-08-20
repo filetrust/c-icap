@@ -5,6 +5,7 @@ env:
   REPOSITORY: glasswallicap.azurecr.io
   IMAGE: icap-test
   RESOURCE_GROUP: gw-gks-icap-squid-proxy
+  FQDN: glasswall-icap-container
 # Controls when the action will run. Triggers the workflow on push or pull request
 # events but only for the master branch
 on:
@@ -31,24 +32,29 @@ jobs:
         token: ${{ secrets.GW_SDK_TOKEN }} 
         submodules: true
 
+    - name: 'Login via Azure CLI'
+      uses: azure/login@v1
+      with:
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
+
     - uses: azure/docker-login@v1
       with:
         login-server: ${{ env.REPOSITORY }} # default: index.docker.io
-        username: ${{ secrets.AZURE_USER }} 
-        password: ${{ secrets.AZURE_PASS }} 
+        username: ${{ secrets.REGISTRY_USER }} 
+        password: ${{ secrets.REGISTRY_PASS }} 
 
     - run: |
         docker build . -t ${{ env.REPOSITORY }}/${{ env.IMAGE }}:${{ github.sha }}
         docker push ${{ env.REPOSITORY }}/${{ env.IMAGE}}:${{ github.sha }}
    
-    # Deploy the ICAP container to Azure container instances 
+    # Deploy the ICAP container to Azure container instances using the recent build image in Azure container registry 
     - name: 'Deploy to Azure Container Instances'
       uses: 'azure/aci-deploy@v1'
       with:
         resource-group: ${{ env.RESOURCE_GROUP }}
-        #  dns-name-label: url-for-container
+        dns-name-label: ${{ env.FQDN }}
         image: ${{ env.REPOSITORY }}/${{ env.IMAGE}}:${{ github.sha }}
-        registry-username: ${{ secrets.REGISTRY_USERNAME }}
-        registry-password: ${{ secrets.REGISTRY_PASSWORD }}
+        registry-username: ${{ secrets.REGISTRY_USER }}
+        registry-password: ${{ secrets.REGISTRY_PASS }}
         name: icap-container
         location: 'UK South'
