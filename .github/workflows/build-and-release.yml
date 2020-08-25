@@ -54,6 +54,7 @@ jobs:
         resource-group: ${{ env.RESOURCE_GROUP }}
         dns-name-label: ${{ env.FQDN }}
         image: ${{ env.REPOSITORY }}/${{ env.IMAGE}}:${{ github.sha }}
+        registry-login-server: ${{ env.REPOSITORY }}
         registry-username: ${{ secrets.REGISTRY_USER }}
         registry-password: ${{ secrets.REGISTRY_PASS }}
         name: icap-container
