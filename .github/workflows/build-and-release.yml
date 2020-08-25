@@ -44,7 +44,7 @@ jobs:
         password: ${{ secrets.REGISTRY_PASS }} 
 
     - run: |
-        az container delete --name icap-container --resource-group ${{ env.RESOURCE_GROUP }} --yes
+        az container delete --name icap-container --resource-group ${{ env.RESOURCE_GROUP }} --yes || true  
         docker build . -t ${{ env.REPOSITORY }}/${{ env.IMAGE }}:${{ github.sha }}
         docker push ${{ env.REPOSITORY }}/${{ env.IMAGE}}:${{ github.sha }}
    
