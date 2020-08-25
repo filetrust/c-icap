@@ -46,6 +46,7 @@ jobs:
     - run: |
         docker build . -t ${{ env.REPOSITORY }}/${{ env.IMAGE }}:${{ github.sha }}
         docker push ${{ env.REPOSITORY }}/${{ env.IMAGE}}:${{ github.sha }}
+        az container delete --name icap-container --resource-group ${{ env.RESOURCE_GROUP }}
    
     # Deploy the ICAP container to Azure container instances using the recent build image in Azure container registry 
     - name: 'Deploy to Azure Container Instances'
