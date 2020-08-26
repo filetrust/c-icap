@@ -6,6 +6,7 @@ env:
   IMAGE: icap-test
   RESOURCE_GROUP: gw-gks-icap-squid-proxy
   FQDN: glasswallicapcontainer
+  CONTAINER_NAME: icap-container
 # Controls when the action will run. Triggers the workflow on push or pull request
 # events but only for the master branch
 on:
@@ -44,10 +45,10 @@ jobs:
         password: ${{ secrets.REGISTRY_PASS }} 
 
     - run: |
-        az container delete --name icap-container --resource-group ${{ env.RESOURCE_GROUP }} --yes || true  
         docker build . -t ${{ env.REPOSITORY }}/${{ env.IMAGE }}:${{ github.sha }}
         docker push ${{ env.REPOSITORY }}/${{ env.IMAGE}}:${{ github.sha }}
-   
+        az container delete --name ${{ env.CONTAINER_NAME }} --resource-group ${{ env.RESOURCE_GROUP }} --yes || true  
+
     # Deploy the ICAP container to Azure container instances using the recent build image in Azure container registry 
     - name: 'Deploy to Azure Container Instances'
       uses: 'azure/aci-deploy@v1'
@@ -58,5 +59,5 @@ jobs:
         registry-login-server: ${{ env.REPOSITORY }}
         registry-username: ${{ secrets.REGISTRY_USER }}
         registry-password: ${{ secrets.REGISTRY_PASS }}
-        name: icap-container
+        name: ${{ env.CONTAINER_NAME }}
         location: 'UK South'
