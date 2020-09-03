@@ -1,5 +1,5 @@
 # ICAP Proof of Concept
-A demonstration that the Glasswall Rebuild SKD can be used within an ICAP service to regenerate documents.
+A demonstration that the Glasswall Rebuild SDK can be used within an ICAP service to regenerate documents.
 
 ## Threat Model
 [On-Premise Deployment](./Documentation/threat_model_onpremise.md)
