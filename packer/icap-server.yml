@@ -1,0 +1,7 @@
+---
+
+- name: run commands
+  hosts: localhost
+  connection: local
+  roles:
+    - geerlingguy.docker 

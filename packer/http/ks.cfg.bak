@@ -1,0 +1,62 @@
+# Install OS instead of upgrade
+install
+
+# System language
+lang en_US.UTF-8
+
+# Keyboard layouts
+keyboard us
+
+# System timezone
+timezone UTC
+
+# Setup network interface
+network --bootproto=dhcp
+
+# Root password
+rootpw --plaintext packer
+user --name=glasswall --plaintext --password=Test123
+auth --enableshadow --passalgo=sha512 --kickstart
+
+# Firewall
+firewall --disable --ssh --http
+
+# Services
+services --enabled=NetworkManager,sshd
+
+# SELinux
+selinux --permissive
+bootloader --location=mbr
+
+# Use text mode install
+text
+skipx
+zerombr
+
+clearpart --all --initlabel
+autopart
+
+#Disable Initial Setup application
+firstboot --disable
+
+# After installation reboot
+reboot
+
+%packages --instLangs=en_US.utf8 --ignoremissing --excludedocs
+@core
+%end
+
+
+%post --log=/root/ks.log
+
+yum install -y yum-utils
+
+yum-config-manager \
+    --add-repo \
+    https://download.docker.com/linux/centos/docker-ce.repo
+
+yum install docker-ce docker-ce-cli containerd.io -y
+
+yum -y update
+
+%end

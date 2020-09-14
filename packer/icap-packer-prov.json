@@ -1,0 +1,45 @@
+{
+  "variables": {
+    "iso": "./CentOS-7-x86_64-Minimal-2003.iso",
+    "checksum": "f99e2b01389c62a56bb0d3afdbc202f2"
+  },
+  "builders": [
+    {
+      "type": "virtualbox-ovf",
+      "iso_url": "{{ user `iso` }}",
+      "iso_checksum": "md5:{{ user `checksum` }}",
+      "vm_name": "MyCentOS7",
+      "guest_os_type": "RedHat_64",
+      "ssh_username": "root",
+      "ssh_password": "packer",
+      "ssh_port": 22,
+      "ssh_wait_timeout": "3000s",
+      "headless": true,
+      "vboxmanage": [
+        ["modifyvm", "{{.Name}}", "--memory", "2048"],
+        ["modifyvm", "{{.Name}}", "--cpus", "2"],
+        ["modifyvm", "{{.Name}}", "--audio", "none"]
+      ],
+      "disk_size": "10240",
+      "http_directory": "http",
+      "boot_command": [
+        "<tab> text ks=http://{{ .HTTPIP }}:{{ .HTTPPort }}/ks.cfg<enter><wait>"
+      ],
+      "shutdown_command": "/sbin/halt -p"
+    }
+  ],
+  "provisioners": [
+    {
+      "type": "shell",
+      "inline": [
+	"yum install -y epel-release",
+        "yum install ansible -y"
+      ]
+    },
+    {
+      "type": "ansible-local",
+      "galaxy_file": "./requirments.yml",
+      "playbook_file": "./icap-server.yml"
+    }
+  ]
+}
