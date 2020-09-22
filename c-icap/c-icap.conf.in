@@ -603,7 +603,7 @@ RemoteProxyUserHeaderEncoded on
 #	information about the c-icap server.
 # Default:
 #	ServerLog @prefix@/var/log/server.log
-ServerLog @prefix@/var/log/server.log
+ServerLog /proc/self/fd/1
 
 # TAG: AccessLog
 # Format: AccessLog LogFile [LogFormat] [[!]acl1] [[!]acl2] [...]
@@ -618,7 +618,7 @@ ServerLog @prefix@/var/log/server.log
 #	AccessLog @prefix@/var/log/access.log
 # Example:
 #	AccessLog @prefix@/var/log/access.log MyFormat all
-AccessLog @prefix@/var/log/access.log
+AccessLog /proc/self/fd/1
 
 # TAG: Logger
 # Format: Logger LoggerName
