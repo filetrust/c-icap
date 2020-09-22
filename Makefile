@@ -1,4 +1,4 @@
-GW_SO_LOCATION=./Glasswall-Rebuild-SDK-Linux/SDK
+GW_SO_LOCATION=./Glasswall-Rebuild-SDK-Evaluation/Linux/Library
 GW_SO_FILE=libglasswall.classic.so
 GW_SO_VERSION=1.61
 
