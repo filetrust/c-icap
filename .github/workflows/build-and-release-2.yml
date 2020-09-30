@@ -5,7 +5,7 @@ env:
   REPOSITORY: glasswallicap58de6aa8.azurecr.io
   IMAGE: icap-test
   RESOURCE_GROUP: gw-icap-performance-pool-c11c167a
-  FQDN: icapdns1.uksouth.azurecontainer.io
+  FQDN: icapdns1
   CONTAINER_NAME: glasswallicap-1-c548cd81
 # Controls when the action will run. Triggers the workflow on push or pull request
 # events but only for the master branch
