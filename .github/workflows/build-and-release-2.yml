@@ -6,7 +6,15 @@ env:
   IMAGE: icap-test
   RESOURCE_GROUP: gw-icap-performance-pool-c11c167a
   FQDN: icapdns1
+  FQDN1: icapdns2
+  FQDN2: icapdns3
+  FQDN3: icapdns4
+  FQDN4: icapdns5
   CONTAINER_NAME: glasswallicap-1-c548cd81
+  CONTAINER_NAME1: glasswallicap-2-e9e36fb4 
+  CONTAINER_NAME2: glasswallicap-3-865d94a9 
+  CONTAINER_NAME3: glasswallicap-4-79dffe96
+  CONTAINER_NAME4: glasswallicap-5-5faa350b
 # Controls when the action will run. Triggers the workflow on push or pull request
 # events but only for the master branch
 on:
@@ -61,4 +69,56 @@ jobs:
         registry-username: ${{ secrets.REGISTRY_USER_2 }}
         registry-password: ${{ secrets.REGISTRY_PASS_2 }}
         name: ${{ env.CONTAINER_NAME }}
+        location: 'UK South'
+
+    - name: 'Deploy to Azure Container Instances'
+      uses: 'azure/aci-deploy@v1'
+      with:
+        resource-group: ${{ env.RESOURCE_GROUP }}
+        dns-name-label: ${{ env.FQDN1 }}
+        image: ${{ env.REPOSITORY }}/${{ env.IMAGE}}:${{ github.sha }}
+        ports: 1344
+        registry-login-server: ${{ env.REPOSITORY }}
+        registry-username: ${{ secrets.REGISTRY_USER_2 }}
+        registry-password: ${{ secrets.REGISTRY_PASS_2 }}
+        name: ${{ env.CONTAINER_NAME1 }}
+        location: 'UK South'
+
+    - name: 'Deploy to Azure Container Instances'
+      uses: 'azure/aci-deploy@v1'
+      with:
+        resource-group: ${{ env.RESOURCE_GROUP }}
+        dns-name-label: ${{ env.FQDN2 }}
+        image: ${{ env.REPOSITORY }}/${{ env.IMAGE}}:${{ github.sha }}
+        ports: 1344
+        registry-login-server: ${{ env.REPOSITORY }}
+        registry-username: ${{ secrets.REGISTRY_USER_2 }}
+        registry-password: ${{ secrets.REGISTRY_PASS_2 }}
+        name: ${{ env.CONTAINER_NAME2 }}
+        location: 'UK South'
+
+    - name: 'Deploy to Azure Container Instances'
+      uses: 'azure/aci-deploy@v1'
+      with:
+        resource-group: ${{ env.RESOURCE_GROUP }}
+        dns-name-label: ${{ env.FQDN3 }}
+        image: ${{ env.REPOSITORY }}/${{ env.IMAGE}}:${{ github.sha }}
+        ports: 1344
+        registry-login-server: ${{ env.REPOSITORY }}
+        registry-username: ${{ secrets.REGISTRY_USER_2 }}
+        registry-password: ${{ secrets.REGISTRY_PASS_2 }}
+        name: ${{ env.CONTAINER_NAME3 }}
+        location: 'UK South'
+        
+    - name: 'Deploy to Azure Container Instances'
+      uses: 'azure/aci-deploy@v1'
+      with:
+        resource-group: ${{ env.RESOURCE_GROUP }}
+        dns-name-label: ${{ env.FQDN4 }}
+        image: ${{ env.REPOSITORY }}/${{ env.IMAGE}}:${{ github.sha }}
+        ports: 1344
+        registry-login-server: ${{ env.REPOSITORY }}
+        registry-username: ${{ secrets.REGISTRY_USER_2 }}
+        registry-password: ${{ secrets.REGISTRY_PASS_2 }}
+        name: ${{ env.CONTAINER_NAME4 }}
         location: 'UK South'
