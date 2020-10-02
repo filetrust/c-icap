@@ -2,7 +2,7 @@ FROM ubuntu as base
 RUN apt-get update && apt-get upgrade -y && apt-get install -y libfreetype6
 
 FROM base as source
-RUN apt-get install -y curl gcc make automake automake1.11 unzip && \
+RUN apt-get install -y curl gcc make automake automake1.11 unzip libssl1.1 libssl-dev && \
     cd /tmp && mkdir c-icap
 COPY ./c-icap/ /tmp/c-icap/c-icap/
 COPY ./c-icap-modules /tmp/c-icap/c-icap-modules  
